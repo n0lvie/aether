@@ -54,8 +54,7 @@ type Operator struct {
 type Language int
 
 const (
-	LangRU Language = iota
-	LangEN
+	LangEN Language = iota
 )
 
 // NewOperator creates a new CLI operator interface.
@@ -63,7 +62,7 @@ func NewOperator(log *slog.Logger) *Operator {
 	return &Operator{
 		log:    log,
 		reader: bufio.NewReader(os.Stdin),
-		lang:   LangRU, // Default: Russian
+		lang:   LangEN, // Default: English
 	}
 }
 

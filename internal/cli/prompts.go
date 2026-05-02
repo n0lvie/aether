@@ -18,25 +18,6 @@ type PromptSet struct {
 
 // Prompts is a map of language → prompt set.
 var Prompts = map[Language]PromptSet{
-	LangRU: {
-		ActionRequired:    "AETHER :: ТРЕБУЕТСЯ ДЕЙСТВИЕ ОПЕРАТОРА",
-		PressEnter:        "Нажмите Enter после выполнения (или q для отмены)...",
-		Timeout:           "Таймаут ожидания",
-		Confirmed:         "Принято. Повторное сканирование оборудования...",
-		AutoDetected:      "Устройство обнаружено автоматически!",
-		ExpectedDevice:    "Ожидаемое устройство",
-		AutoDetectEnabled: "Автодетект включён — устройство будет обнаружено автоматически",
-		AbortHint:         "Для отмены введите 'q' или 'exit'",
-		HardwareActions: map[string]string{
-			"attach_lora":     "Подключите LoRa/Meshtastic трансивер к USB-порту",
-			"attach_modem":    "Подключите USB-модем с активной SIM-картой",
-			"connect_phone":   "Подключите аналоговую телефонную линию к модему",
-			"attach_sdr":      "Подключите SDR-приёмник (RTL-SDR/HackRF) к USB-порту",
-			"enable_hotspot":  "Включите Wi-Fi точку доступа на телефоне и подключите USB",
-			"position_sdr":    "Направьте SDR-антенну на указанный азимут",
-			"generic_network": "Обеспечьте любое сетевое подключение (Wi-Fi, Ethernet, USB-tethering)",
-		},
-	},
 	LangEN: {
 		ActionRequired:    "AETHER :: OPERATOR ACTION REQUIRED",
 		PressEnter:        "Press Enter when done (or q to abort)...",

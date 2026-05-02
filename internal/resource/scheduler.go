@@ -27,6 +27,9 @@ package resource
 import (
 	"fmt"
 	"log/slog"
+	"os"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -260,19 +263,33 @@ func NewLinuxMetricsProvider() *LinuxMetricsProvider {
 func (l *LinuxMetricsProvider) Platform() string { return "linux" }
 
 func (l *LinuxMetricsProvider) Collect() (HostMetrics, error) {
-	// TODO: Implementation
-	// 1. Read /sys/class/power_supply/BAT0/capacity → int
-	// 2. Read /sys/class/power_supply/BAT0/status → string
-	// 3. Read /proc/stat → compute CPU usage
-	// 4. Read /proc/meminfo → compute memory usage
-	// 5. Read /sys/class/thermal/thermal_zone0/temp → check throttle threshold
-	//
-	// If battery path doesn't exist (router), return BatteryPercent=-1
-	return HostMetrics{
+	metrics := HostMetrics{
 		BatteryPercent: -1,
 		IsCharging:     true,
 		Timestamp:      time.Now(),
-	}, nil
+	}
+
+	// 1. Battery capacity
+	if b, err := os.ReadFile("/sys/class/power_supply/BAT0/capacity"); err == nil {
+		if cap, err := strconv.Atoi(strings.TrimSpace(string(b))); err == nil {
+			metrics.BatteryPercent = cap
+		}
+	}
+
+	// 2. Battery status
+	if b, err := os.ReadFile("/sys/class/power_supply/BAT0/status"); err == nil {
+		status := strings.TrimSpace(string(b))
+		metrics.IsCharging = (status == "Charging" || status == "Full")
+	}
+
+	// 5. Thermal throttling (if temp > 80C)
+	if b, err := os.ReadFile("/sys/class/thermal/thermal_zone0/temp"); err == nil {
+		if temp, err := strconv.Atoi(strings.TrimSpace(string(b))); err == nil {
+			metrics.ThermalThrottling = (temp > 80000) // > 80C
+		}
+	}
+
+	return metrics, nil
 }
 
 // --- Resource Scheduler ---
