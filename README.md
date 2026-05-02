@@ -2,7 +2,7 @@
 
 **Autonomous Zero-Config Connectivity Daemon**
 
-> *"A rational, indifferent instrument. Objective: establish global network access by any means and at any cost."*
+> *"The last packet standing."*
 
 Project Aether is a purely functional, indifferent network connectivity daemon designed to maintain internet access under conditions of total censorship, DPI-based blocking, and network blackouts. It operates as a universal tool that systematically exploits every available hardware and software capability to establish a resilient tunnel.
 
