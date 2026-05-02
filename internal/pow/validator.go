@@ -18,9 +18,18 @@ import (
 // solution nonce produces a hash with sufficient leading zero bits.
 // This is inherently ~2-5 seconds, which is acceptable for a one-time
 // join protocol but prevents trivial brute-force on the verification side.
+//
+// Two validation modes:
+//   - Validate():        uses wall-clock timestamps (online, NTP available)
+//   - ValidateOffline(): uses NonceCache (offline, no NTP / clock drift)
 type Validator struct {
 	log        *slog.Logger
 	hmacSecret []byte
+
+	// NonceCache for NTP-independent validation (Blackout mode).
+	// When set, ValidateOffline() checks nonces against this cache
+	// instead of relying on wall-clock timestamps.
+	nonceCache *NonceCache
 
 	// Rate limiting: track recent solutions per public key
 	rateLimiter map[[32]byte][]time.Time
@@ -34,15 +43,21 @@ type Validator struct {
 	MaxSolutionsPerMinute int
 }
 
-// NewValidator creates a new PoW validator.
+// NewValidator creates a new PoW validator with both online and offline support.
 func NewValidator(log *slog.Logger, hmacSecret []byte) *Validator {
 	return &Validator{
 		log:                   log,
 		hmacSecret:            hmacSecret,
+		nonceCache:            NewNonceCache(DefaultMaxNonces),
 		rateLimiter:           make(map[[32]byte][]time.Time),
 		banList:               make(map[[32]byte]struct{}),
 		MaxSolutionsPerMinute: 5,
 	}
+}
+
+// NonceCache returns the validator's nonce cache for issuing challenges.
+func (v *Validator) NonceCache() *NonceCache {
+	return v.nonceCache
 }
 
 // ValidationResult describes the outcome of a PoW validation.
@@ -141,6 +156,97 @@ func (v *Validator) Validate(challenge *Challenge, solution *Solution) Validatio
 	return ValidationResult{
 		Valid:        true,
 		Reason:       "valid",
+		LeadingZeros: leadingZeros,
+		ComputeTime:  computeTime,
+	}
+}
+
+// ValidateOffline checks a solution using the nonce cache instead of timestamps.
+// This is the NTP-drift-immune validation path for Blackout scenarios.
+//
+// Steps:
+//   1. Check challenge HMAC (not tampered)
+//   2. Check nonce in cache (replaces timestamp check)
+//   3. Check solver public key (not banned)
+//   4. Check rate limit (not flooding)
+//   5. Verify Ed25519 signature (solver owns the key)
+//   6. Recompute Argon2id and check leading zero bits
+func (v *Validator) ValidateOffline(challenge *Challenge, solution *Solution) ValidationResult {
+	start := time.Now()
+
+	// Step 1: Verify challenge HMAC
+	mac := hmac.New(sha256.New, v.hmacSecret)
+	mac.Write(challenge.Payload())
+	expectedMAC := mac.Sum(nil)
+	if !hmac.Equal(expectedMAC, challenge.MAC[:]) {
+		return ValidationResult{Valid: false, Reason: "invalid challenge HMAC — possible tampering"}
+	}
+
+	// Step 2: Check nonce in cache (NTP-independent)
+	if v.nonceCache != nil {
+		if err := v.nonceCache.Validate(challenge.Nonce, challenge.Difficulty); err != nil {
+			return ValidationResult{Valid: false, Reason: fmt.Sprintf("nonce check failed: %v", err)}
+		}
+	}
+
+	// Step 3: Check ban list
+	v.banMu.RLock()
+	_, banned := v.banList[solution.SolverPubKey]
+	v.banMu.RUnlock()
+	if banned {
+		return ValidationResult{Valid: false, Reason: "solver public key is banned"}
+	}
+
+	// Step 4: Rate limiting
+	if !v.checkRateLimit(solution.SolverPubKey) {
+		return ValidationResult{Valid: false, Reason: fmt.Sprintf(
+			"rate limit exceeded: max %d solutions/min per pubkey",
+			v.MaxSolutionsPerMinute,
+		)}
+	}
+
+	// Step 5: Verify Ed25519 signature
+	payload := challenge.Payload()
+	signData := make([]byte, len(payload)+32)
+	copy(signData, payload)
+	copy(signData[len(payload):], solution.SolutionNonce[:])
+
+	pubKey := ed25519.PublicKey(solution.SolverPubKey[:])
+	if !ed25519.Verify(pubKey, signData, solution.Signature[:]) {
+		return ValidationResult{Valid: false, Reason: "invalid Ed25519 signature"}
+	}
+
+	// Step 6: Recompute Argon2id and verify
+	input := make([]byte, len(payload)+32)
+	copy(input, payload)
+	copy(input[len(payload):], solution.SolutionNonce[:])
+
+	salt := challenge.Nonce[:]
+	hash := argon2.IDKey(input, salt, Argon2Time, Argon2Memory, Argon2Threads, Argon2KeyLen)
+
+	leadingZeros := countLeadingZeroBits(hash)
+	computeTime := time.Since(start)
+
+	if leadingZeros < int(challenge.Difficulty) {
+		return ValidationResult{
+			Valid:        false,
+			Reason:       fmt.Sprintf("insufficient leading zeros: got %d, need %d", leadingZeros, challenge.Difficulty),
+			LeadingZeros: leadingZeros,
+			ComputeTime:  computeTime,
+		}
+	}
+
+	v.log.Info("PoW validated (offline mode)",
+		"solver", fmt.Sprintf("%x", solution.SolverPubKey[:8]),
+		"leading_zeros", leadingZeros,
+		"compute_time", computeTime,
+	)
+
+	v.recordSolution(solution.SolverPubKey)
+
+	return ValidationResult{
+		Valid:        true,
+		Reason:       "valid (offline)",
 		LeadingZeros: leadingZeros,
 		ComputeTime:  computeTime,
 	}

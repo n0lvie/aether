@@ -44,8 +44,14 @@ func NewSolver(log *slog.Logger, privKey ed25519.PrivateKey) *Solver {
 // For anti-Sybil purposes, even difficulty=1 is effective because the
 // memory-hard Argon2id computation takes ~2s regardless.
 func (s *Solver) Solve(ctx context.Context, challenge *Challenge) (*Solution, error) {
+	// Note: we do NOT reject expired challenges here.
+	// TTL enforcement is the validator's responsibility.
+	// In offline/Blackout mode, timestamps may be wildly wrong due to NTP drift,
+	// but the server-side nonce cache handles validity instead.
 	if challenge.IsExpired() {
-		return nil, fmt.Errorf("challenge expired: timestamp %d", challenge.Timestamp)
+		s.log.Warn("challenge timestamp appears expired (may be NTP drift)",
+			"timestamp", challenge.Timestamp,
+		)
 	}
 
 	payload := challenge.Payload()
