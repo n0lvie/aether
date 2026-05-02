@@ -10,6 +10,35 @@
 //!    packet processing with zero kernel overhead.
 //! 3. **Fingerprint evasion**: TTL, TCP window, and entropy are normalized
 //!    to match the host OS's legitimate traffic patterns.
+//!
+//! ## Fallback Strategy (Graceful Degradation)
+//!
+//! XDP requires: Linux kernel ≥4.18, CAP_BPF or CAP_SYS_ADMIN, and a NIC
+//! driver that supports XDP hooks. When ANY of these are missing, the Go
+//! orchestrator MUST gracefully degrade through the following chain:
+//!
+//! 1. **XDP native mode** (best): NIC driver supports XDP natively.
+//!    Attach with `BPF_LINK_TYPE_XDP`. Zero-copy, line-rate.
+//!
+//! 2. **XDP generic mode** (good): Kernel supports XDP but NIC driver doesn't.
+//!    Attach with `XDP_FLAGS_SKB_MODE`. Still kernel-space, slight overhead.
+//!
+//! 3. **TC (Traffic Control)** (acceptable): Attach as a TC BPF classifier on
+//!    the egress path (`tc filter add dev ... bpf`). Works on all modern
+//!    kernels (≥4.1) but processes packets later in the stack.
+//!
+//! 4. **iptables NFQUEUE** (degraded): Userspace packet processing via
+//!    `libnetfilter_queue`. High latency but works without any BPF support.
+//!    Suitable for OpenWrt routers with old kernels.
+//!
+//! 5. **Userspace obfuscation** (minimum): When none of the above work
+//!    (e.g., Android without root, macOS, Windows), the Go crypto layer
+//!    applies transforms in userspace before sending. No kernel-level
+//!    stealth, but still provides encryption and basic obfuscation.
+//!
+//! The Go loader (`internal/crypto/envelope.go`) attempts modes 1→5 in
+//! order, logging which mode was activated. The daemon NEVER fails to
+//! start due to missing eBPF support — it simply runs with reduced stealth.
 
 #![no_std]
 #![no_main]

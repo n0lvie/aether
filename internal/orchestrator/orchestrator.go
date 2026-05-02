@@ -13,6 +13,11 @@ import (
 	"github.com/aether-project/aether/internal/hwscan"
 )
 
+// MaxTransitionHistory is the maximum number of FSM transitions kept in memory.
+// Prevents unbounded growth in long-running daemons (months of uptime).
+// 1000 transitions × ~100 bytes each ≈ 100KB hard cap.
+const MaxTransitionHistory = 1000
+
 // Orchestrator is the central FSM that manages the daemon's lifecycle.
 // It coordinates hardware discovery, seed resolution, vector racing,
 // connection maintenance, and human operator interaction.
@@ -23,8 +28,13 @@ type Orchestrator struct {
 	// FSM
 	currentState State
 	stateConfigs map[State]StateConfig
-	transitions  []Transition
-	mu           sync.RWMutex
+	// Ring buffer for transition history (bounded at MaxTransitionHistory).
+	// Prevents memory leak reported in review: in long-running daemons,
+	// the old slice-based approach would grow without bound.
+	transitions []Transition
+	transHead   int // Next write position in ring buffer
+	transCount  int // Total transitions recorded (including overwritten)
+	mu          sync.RWMutex
 
 	// Subsystems
 	identity *crypto.Identity
@@ -71,6 +81,7 @@ func New(cfg Config, registry *VectorRegistry) *Orchestrator {
 		stateDir:     cfg.StateDir,
 		currentState: StateColdStart,
 		stateConfigs: stateConfigs,
+		transitions:  make([]Transition, MaxTransitionHistory),
 		registry:     registry,
 		scanner:      hwscan.NewScanner(log),
 		operator:     cli.NewOperator(log),
@@ -132,11 +143,23 @@ func (o *Orchestrator) State() State {
 	return o.currentState
 }
 
-// Transitions returns the history of state transitions.
+// Transitions returns the history of state transitions in chronological order.
+// Returns at most MaxTransitionHistory entries.
 func (o *Orchestrator) Transitions() []Transition {
 	o.mu.RLock()
 	defer o.mu.RUnlock()
-	return append([]Transition{}, o.transitions...)
+
+	count := o.transCount
+	if count > MaxTransitionHistory {
+		count = MaxTransitionHistory
+	}
+
+	result := make([]Transition, 0, count)
+	for i := 0; i < count; i++ {
+		idx := (o.transHead - count + i + MaxTransitionHistory) % MaxTransitionHistory
+		result = append(result, o.transitions[idx])
+	}
+	return result
 }
 
 // executeState runs the logic for the current state and returns the next state.
@@ -221,18 +244,75 @@ func (o *Orchestrator) execHardwareScan(ctx context.Context) (State, error) {
 	return StateSeedDiscovery, nil
 }
 
-// execSeedDiscovery attempts to discover bootstrap nodes through all available oracles.
-func (o *Orchestrator) execSeedDiscovery(ctx context.Context) (State, error) {
-	o.log.Info("discovering seed nodes")
+// SeedOracle is an interface for seed node discovery mechanisms.
+// Each oracle independently queries one source (DNS, SMS, blockchain, etc.)
+// and returns any discovered seed nodes.
+type SeedOracle interface {
+	// Name returns the oracle identifier for logging.
+	Name() string
+	// Discover queries the oracle and returns discovered seeds.
+	// Must respect context cancellation.
+	Discover(ctx context.Context) ([]crypto.SeedNode, error)
+}
 
-	// TODO: Run seed discovery oracles in parallel:
-	// - DNS TXT records via DoH/DoT
-	// - Domain Fronting requests
-	// - AT-command SMS/USSD queries
-	// - Blockchain smart contract reads
-	// - ICMP probe sequences
-	//
-	// For now, proceed to VectorRace with any hardcoded/cached seeds.
+// execSeedDiscovery runs all available oracles in parallel and collects results.
+// Uses goroutines + shared results channel (same pattern as Happy Eyeballs).
+func (o *Orchestrator) execSeedDiscovery(ctx context.Context) (State, error) {
+	o.log.Info("discovering seed nodes via parallel oracles")
+
+	// Collect registered oracles
+	oracles := o.buildSeedOracles()
+
+	if len(oracles) == 0 {
+		o.log.Warn("no seed oracles configured — using cached seeds only")
+	} else {
+		// Run all oracles in parallel
+		type oracleResult struct {
+			name  string
+			seeds []crypto.SeedNode
+			err   error
+		}
+
+		results := make(chan oracleResult, len(oracles))
+		var wg sync.WaitGroup
+
+		for _, oracle := range oracles {
+			wg.Add(1)
+			go func(orc SeedOracle) {
+				defer wg.Done()
+				seeds, err := orc.Discover(ctx)
+				results <- oracleResult{
+					name:  orc.Name(),
+					seeds: seeds,
+					err:   err,
+				}
+			}(oracle)
+		}
+
+		// Close results channel when all oracles finish
+		go func() {
+			wg.Wait()
+			close(results)
+		}()
+
+		// Collect all discovered seeds
+		for res := range results {
+			if res.err != nil {
+				o.log.Debug("oracle failed",
+					"oracle", res.name,
+					"error", res.err,
+				)
+				continue
+			}
+			if len(res.seeds) > 0 {
+				o.log.Info("oracle discovered seeds",
+					"oracle", res.name,
+					"count", len(res.seeds),
+				)
+				o.AddSeeds(res.seeds...)
+			}
+		}
+	}
 
 	o.seedsMu.RLock()
 	seedCount := len(o.seeds)
@@ -245,6 +325,20 @@ func (o *Orchestrator) execSeedDiscovery(ctx context.Context) (State, error) {
 	}
 
 	return StateVectorRace, nil
+}
+
+// buildSeedOracles returns the available seed discovery oracles.
+// In production, these would be populated from configuration.
+func (o *Orchestrator) buildSeedOracles() []SeedOracle {
+	// Oracle registration is done by the caller via AddSeedOracle().
+	// Currently returns empty — vectors handle discovery themselves.
+	// Future oracles:
+	//   - DoH TXT record oracle (queries DNS-over-HTTPS for seed TXT records)
+	//   - Domain Fronting oracle (CDN-tunneled seed requests)
+	//   - AT-command oracle (SMS/USSD queries via cell modem)
+	//   - Blockchain oracle (reads seed info from smart contracts)
+	//   - ICMP echo oracle (probes known IP ranges for Aether nodes)
+	return nil
 }
 
 // execVectorRace runs the Aggressive Happy Eyeballs algorithm.
@@ -366,7 +460,7 @@ func (o *Orchestrator) execHumanRequired(ctx context.Context) (State, error) {
 
 // --- Helper methods ---
 
-// transitionTo changes the FSM state and records the transition.
+// transitionTo changes the FSM state and records the transition in the ring buffer.
 func (o *Orchestrator) transitionTo(next State, reason string) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
@@ -377,7 +471,12 @@ func (o *Orchestrator) transitionTo(next State, reason string) {
 		Reason:    reason,
 		Timestamp: time.Now(),
 	}
-	o.transitions = append(o.transitions, t)
+
+	// Write to ring buffer (O(1), bounded memory)
+	o.transitions[o.transHead] = t
+	o.transHead = (o.transHead + 1) % MaxTransitionHistory
+	o.transCount++
+
 	o.currentState = next
 
 	o.log.Info("state transition",
