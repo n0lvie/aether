@@ -1,0 +1,56 @@
+# --- Project Aether .gitignore ---
+
+# Binaries and executables
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+aetherd
+aether-cli
+
+# Go related
+go.work
+.cache/
+*.test
+*.prof
+
+# Rust related
+target/
+**/*.rs.bk
+Cargo.lock
+
+# Configuration and Secrets
+# DO NOT COMMIT PRIVATE KEYS OR LOCAL CONFIGS
+*.key
+*.pem
+*.secret
+.env
+.env.*
+configs/*.local.toml
+configs/secrets.*
+
+# Local State and Data
+state/
+data/
+logs/
+.aether/
+*.db
+*.sqlite
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Build Artifacts
+dist/
+build/
+out/
+temp/
+tmp/

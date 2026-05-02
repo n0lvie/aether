@@ -1,0 +1,106 @@
+# Project Aether — Default Configuration
+# This file is loaded by the daemon on startup.
+# All settings have sensible defaults for zero-config operation.
+
+[daemon]
+# Directory for persistent state (Ed25519 keys, seed cache, DTN queue)
+state_dir = "~/.aether"
+
+# Log level: debug, info, warn, error
+log_level = "info"
+
+# Language for CLI prompts: "ru" or "en"
+language = "ru"
+
+[fsm]
+# Override default state timeouts (in seconds)
+# Uncomment to customize:
+# cold_start_timeout = 10
+# hardware_scan_timeout = 30
+# seed_discovery_timeout = 60
+# vector_race_timeout = 120
+# degraded_timeout = 60
+
+[pow]
+# Base difficulty for Proof-of-Work (leading zero bits)
+# Range: 8 (easy, ~2s) to 24 (hard, minutes)
+# Adaptive difficulty overrides this under load.
+base_difficulty = 16
+
+# Maximum solutions accepted per pubkey per minute
+rate_limit = 5
+
+# Challenge TTL in seconds
+challenge_ttl = 60
+
+[noise]
+# Noise protocol pattern
+pattern = "Noise_XX_25519_ChaChaPoly_SHA256"
+
+# Prologue for domain separation
+prologue = "aether-v1"
+
+[vectors]
+# Enable/disable specific vectors
+# All vectors are enabled by default.
+[vectors.enabled]
+icmp_tunnel = true
+at_modem = true
+obfuscated_tls = true
+llm_mimicry = true
+doh_oracle = true
+ble_mesh = true
+dtn = true
+lora_meshtastic = true
+softmodem = true
+
+# Tier delays for Happy Eyeballs (seconds between tier launches)
+tier_delay = 2
+
+# Maximum race attempts before escalating to HumanRequired
+max_race_attempts = 3
+
+[stealth]
+# eBPF/XDP stealth module configuration
+# Requires root/CAP_BPF on Linux
+
+# Enable eBPF stealth (false on non-Linux or non-root)
+enabled = false
+
+# Target TTL for normalization (64=Linux, 128=Windows)
+target_ttl = 64
+
+# Target TCP window size
+target_tcp_window = 65535
+
+# Aether magic bytes (hex)
+magic_bytes = "41455448"
+
+[oracles]
+# DNS-over-HTTPS resolvers for seed discovery
+doh_resolvers = [
+    "https://1.1.1.1/dns-query",
+    "https://8.8.8.8/dns-query",
+    "https://9.9.9.9:5053/dns-query",
+]
+
+# Domains to query for TXT records containing seed node info
+seed_domains = [
+    "_aether.example.com",
+]
+
+# Domain fronting CDN endpoints
+fronting_hosts = []
+
+# Blockchain RPC endpoints for smart contract reads
+blockchain_rpcs = []
+
+[hardware]
+# Serial port scan range (Windows: COM1-COM32, Linux: auto-detect)
+serial_scan_max = 32
+
+# USB VID/PID pairs for known devices
+# Format: "VID:PID"
+[hardware.known_devices]
+rtl_sdr = "0bda:2838"
+hackrf = "1d50:6089"

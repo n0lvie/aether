@@ -1,0 +1,14 @@
+[package]
+name = "aether-ebpf"
+version = "0.1.0"
+edition = "2021"
+description = "XDP/eBPF programs for kernel-level traffic stealth"
+
+[dependencies]
+aether-ebpf-common = { path = "../aether-ebpf-common" }
+aya-ebpf = ">=0.1"
+aya-log-ebpf = ">=0.1"
+
+[[bin]]
+name = "aether-xdp"
+path = "src/main.rs"

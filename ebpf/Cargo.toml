@@ -1,0 +1,3 @@
+[workspace]
+members = ["aether-ebpf", "aether-ebpf-common"]
+resolver = "2"
