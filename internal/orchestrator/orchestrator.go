@@ -52,6 +52,7 @@ type Orchestrator struct {
 	seedsMu sync.RWMutex
 
 	// Lifecycle
+	runCtx context.Context    // Stored from Run() for child goroutines
 	cancel context.CancelFunc
 	done   chan struct{}
 }
@@ -92,6 +93,7 @@ func New(cfg Config, registry *VectorRegistry) *Orchestrator {
 // Run starts the FSM main loop. Blocks until shutdown or fatal error.
 func (o *Orchestrator) Run(ctx context.Context) error {
 	ctx, o.cancel = context.WithCancel(ctx)
+	o.runCtx = ctx // Store for maintainConnection child goroutines
 	defer close(o.done)
 
 	o.log.Info("=== PROJECT AETHER ===")
@@ -162,35 +164,85 @@ func (o *Orchestrator) Transitions() []Transition {
 	return result
 }
 
-// executeState runs the logic for the current state and returns the next state.
+// executeState runs the logic for the current state with retry support.
+// Respects StateConfig.MaxRetries and StateConfig.NextOnFailure.
 func (o *Orchestrator) executeState(ctx context.Context) (State, error) {
 	cfg := o.stateConfigs[o.currentState]
 
-	// Apply state timeout (if configured)
-	var stateCtx context.Context
-	var cancel context.CancelFunc
-	if cfg.Timeout > 0 {
-		stateCtx, cancel = context.WithTimeout(ctx, cfg.Timeout)
-	} else {
-		stateCtx, cancel = context.WithCancel(ctx)
+	maxAttempts := cfg.MaxRetries + 1 // MaxRetries=0 means 1 attempt
+	if maxAttempts < 1 {
+		maxAttempts = 1
 	}
-	defer cancel()
 
+	var lastErr error
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		// Apply state timeout (if configured)
+		var stateCtx context.Context
+		var cancel context.CancelFunc
+		if cfg.Timeout > 0 {
+			stateCtx, cancel = context.WithTimeout(ctx, cfg.Timeout)
+		} else {
+			stateCtx, cancel = context.WithCancel(ctx)
+		}
+
+		nextState, err := o.dispatchState(stateCtx)
+		cancel()
+
+		if err == nil {
+			return nextState, nil
+		}
+
+		lastErr = err
+
+		// Don't retry if context was cancelled (shutdown)
+		if ctx.Err() != nil {
+			return StateTerminated, ctx.Err()
+		}
+
+		if attempt < maxAttempts {
+			o.log.Warn("state execution failed, retrying",
+				"state", o.currentState,
+				"attempt", attempt,
+				"max_attempts", maxAttempts,
+				"error", err,
+			)
+			// Brief pause between retries (backoff: 1s, 2s, 4s, ...)
+			backoff := time.Duration(1<<(attempt-1)) * time.Second
+			select {
+			case <-time.After(backoff):
+			case <-ctx.Done():
+				return StateTerminated, ctx.Err()
+			}
+		}
+	}
+
+	// All retries exhausted → use NextOnFailure from config
+	o.log.Error("state retries exhausted",
+		"state", o.currentState,
+		"retries", cfg.MaxRetries,
+		"error", lastErr,
+		"next", cfg.NextOnFailure,
+	)
+	return cfg.NextOnFailure, lastErr
+}
+
+// dispatchState routes to the appropriate state handler.
+func (o *Orchestrator) dispatchState(ctx context.Context) (State, error) {
 	switch o.currentState {
 	case StateColdStart:
-		return o.execColdStart(stateCtx)
+		return o.execColdStart(ctx)
 	case StateHardwareScan:
-		return o.execHardwareScan(stateCtx)
+		return o.execHardwareScan(ctx)
 	case StateSeedDiscovery:
-		return o.execSeedDiscovery(stateCtx)
+		return o.execSeedDiscovery(ctx)
 	case StateVectorRace:
-		return o.execVectorRace(stateCtx)
+		return o.execVectorRace(ctx)
 	case StateConnected:
-		return o.execConnected(stateCtx)
+		return o.execConnected(ctx)
 	case StateDegraded:
-		return o.execDegraded(stateCtx)
+		return o.execDegraded(ctx)
 	case StateHumanRequired:
-		return o.execHumanRequired(stateCtx)
+		return o.execHumanRequired(ctx)
 	case StateTerminated:
 		return StateTerminated, nil
 	default:
@@ -487,12 +539,17 @@ func (o *Orchestrator) transitionTo(next State, reason string) {
 }
 
 // maintainConnection runs the maintenance loop for a single connection.
+// The goroutine is derived from the orchestrator's run context, ensuring
+// it is cancelled on shutdown (fixes orphaned goroutine bug).
 func (o *Orchestrator) maintainConnection(v Vector, conn *Connection) {
-	ctx, cancel := context.WithCancel(context.Background())
+	// Derive from runCtx so shutdown cancels all maintenance goroutines.
+	// Previously used context.Background() which leaked goroutines.
+	ctx, cancel := context.WithCancel(o.runCtx)
 	conn.Cancel = cancel
 
 	err := v.Maintain(ctx, conn)
-	if err != nil {
+	if err != nil && ctx.Err() == nil {
+		// Only log if not shutdown-triggered
 		o.log.Warn("connection maintenance ended",
 			"vector", v.Name(),
 			"error", err,

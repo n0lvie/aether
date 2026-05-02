@@ -16,6 +16,10 @@ type RaceResult struct {
 	Duration   time.Duration
 }
 
+// DefaultTierDelay is the default delay between launching each tier of vectors.
+// Gives higher-priority vectors a head start without blocking lower tiers.
+const DefaultTierDelay = 2 * time.Second
+
 // HappyEyeballs implements the Aggressive Happy Eyeballs algorithm.
 //
 // Unlike RFC 8305 which staggers connection attempts with 250ms delays,
@@ -29,13 +33,18 @@ type RaceResult struct {
 type HappyEyeballs struct {
 	log     *slog.Logger
 	vectors []Vector
+
+	// TierDelay is the stagger delay between launching each tier.
+	// Configurable to allow the resource scheduler to adjust based on power budget.
+	TierDelay time.Duration
 }
 
 // NewHappyEyeballs creates a racer with the given set of available vectors.
 func NewHappyEyeballs(log *slog.Logger, vectors []Vector) *HappyEyeballs {
 	return &HappyEyeballs{
-		log:     log,
-		vectors: vectors,
+		log:       log,
+		vectors:   vectors,
+		TierDelay: DefaultTierDelay,
 	}
 }
 
@@ -72,10 +81,9 @@ func (he *HappyEyeballs) Race(ctx context.Context) (*RaceResult, error) {
 
 	// Launch all tiers with staggered delays
 	var wg sync.WaitGroup
-	tierDelay := 2 * time.Second // Delay between tier launches
 
 	for tierIdx, tierVectors := range tiers {
-		delay := time.Duration(tierIdx) * tierDelay
+		delay := time.Duration(tierIdx) * he.TierDelay
 
 		for _, v := range tierVectors {
 			wg.Add(1)

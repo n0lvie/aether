@@ -180,3 +180,92 @@ func TestEffectiveTrustComputation(t *testing.T) {
 		t.Errorf("expected TrustTOFU, got %s", trust)
 	}
 }
+
+// TestDetectKeyChange verifies Key Continuity detection.
+// This test also validates the lock juggling fix (BUG-1):
+// the old code used RLock→RUnlock→Lock which created a data race window.
+func TestDetectKeyChange(t *testing.T) {
+	store := NewStore()
+
+	var originalKey [32]byte
+	copy(originalKey[:], []byte("original-key-1234567890abcdef0"))
+
+	var newKey [32]byte
+	copy(newKey[:], []byte("new-key-after-reinstall-0000000"))
+
+	// Register peer
+	store.RecordFirstContact(originalKey)
+
+	// Same key → no change
+	changed := store.DetectKeyChange(originalKey, originalKey)
+	if changed {
+		t.Error("same key should not trigger change detection")
+	}
+
+	// Different key → change detected
+	changed = store.DetectKeyChange(newKey, originalKey)
+	if !changed {
+		t.Error("different key should trigger change detection")
+	}
+
+	// Verify KeyHistory was recorded
+	peer := store.GetPeer(originalKey)
+	if peer == nil {
+		t.Fatal("peer should exist")
+	}
+	if len(peer.KeyHistory) != 1 {
+		t.Fatalf("expected 1 key change, got %d", len(peer.KeyHistory))
+	}
+	if peer.KeyHistory[0].OldKey != originalKey {
+		t.Error("old key mismatch in history")
+	}
+	if peer.KeyHistory[0].NewKey != newKey {
+		t.Error("new key mismatch in history")
+	}
+}
+
+// TestDetectKeyChange_UnknownPeer verifies that unknown peers don't trigger alerts.
+func TestDetectKeyChange_UnknownPeer(t *testing.T) {
+	store := NewStore()
+
+	var unknownKey [32]byte
+	copy(unknownKey[:], []byte("never-seen-before-key-000000000"))
+
+	var claimedKey [32]byte
+	copy(claimedKey[:], []byte("some-other-key-00000000000000000"))
+
+	changed := store.DetectKeyChange(claimedKey, unknownKey)
+	if changed {
+		t.Error("unknown peer should not trigger change detection")
+	}
+}
+
+// TestDetectKeyChange_Concurrent verifies thread safety of the fixed implementation.
+// This test would panic/race with the old lock-juggling code.
+func TestDetectKeyChange_Concurrent(t *testing.T) {
+	store := NewStore()
+
+	var key1 [32]byte
+	copy(key1[:], []byte("concurrent-test-key-1-000000000"))
+	var key2 [32]byte
+	copy(key2[:], []byte("concurrent-test-key-2-000000000"))
+
+	store.RecordFirstContact(key1)
+
+	// Run concurrent DetectKeyChange calls — this would race under the old code
+	done := make(chan struct{})
+	for i := 0; i < 50; i++ {
+		go func() {
+			defer func() { done <- struct{}{} }()
+			store.DetectKeyChange(key2, key1)
+		}()
+		go func() {
+			defer func() { done <- struct{}{} }()
+			store.GetPeer(key1) // Concurrent read
+		}()
+	}
+
+	for i := 0; i < 100; i++ {
+		<-done
+	}
+}

@@ -330,8 +330,11 @@ func (s *Store) AddAttestation(att Attestation) error {
 //
 // Returns true if the key has changed (caller must alert the user).
 func (s *Store) DetectKeyChange(claimedPubKey [32]byte, previousPubKey [32]byte) bool {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	// Use exclusive Lock (not RLock) because we may write to KeyHistory.
+	// This avoids the lock-juggling anti-pattern (RLock→RUnlock→Lock)
+	// that creates a data race window between unlock and re-lock.
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	peer, exists := s.peers[previousPubKey]
 	if !exists {
@@ -339,17 +342,12 @@ func (s *Store) DetectKeyChange(claimedPubKey [32]byte, previousPubKey [32]byte)
 	}
 
 	if peer.PubKey != claimedPubKey {
-		// KEY CHANGE DETECTED
-		// Record the change for forensics
-		s.mu.RUnlock()
-		s.mu.Lock()
+		// KEY CHANGE DETECTED — record for forensics
 		peer.KeyHistory = append(peer.KeyHistory, KeyChange{
 			OldKey:    previousPubKey,
 			NewKey:    claimedPubKey,
 			Timestamp: time.Now(),
 		})
-		s.mu.Unlock()
-		s.mu.RLock()
 		return true
 	}
 	return false
