@@ -7,8 +7,8 @@ bin/
 *.dll
 *.so
 *.dylib
-aetherd
-aether-cli
+/aetherd
+/aether-cli
 
 # Go related
 go.work
