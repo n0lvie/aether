@@ -10,27 +10,27 @@ Project Aether is a self-healing network connectivity daemon designed to maintai
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    cmd/aetherd (Entry Point)                 │
+│                    cmd/aetherd (Entry Point)                │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │              orchestrator (FSM Engine)                │   │
-│  │  ColdStart → HWScan → SeedDiscovery → VectorRace    │   │
-│  │  → Connected → Degraded → HumanRequired → Terminated│   │
-│  └──────┬───────────┬──────────┬───────────┬────────────┘   │
-│         │           │          │           │                 │
-│  ┌──────▼─┐  ┌──────▼──┐  ┌───▼────┐  ┌──▼──────────┐     │
-│  │vectors │  │resource  │  │  pow   │  │   trust     │     │
-│  │9 stubs │  │scheduler │  │Argon2id│  │SAS+WoT+TOFU│     │
-│  │Tier 0-4│  │5 tiers   │  │+nonce  │  │attestations │     │
-│  └────────┘  └──────────┘  └────────┘  └─────────────┘     │
-│         │           │          │           │                 │
-│  ┌──────▼─┐  ┌──────▼──┐  ┌───▼────┐  ┌──▼──────────┐     │
-│  │hwscan  │  │  crypto  │  │  ota   │  │    cli      │     │
-│  │COM/USB │  │Ed25519   │  │MultiSig│  │ANSI prompts │     │
-│  │Audio   │  │Noise_XX  │  │Canary  │  │RU/EN locale │     │
-│  │Network │  │ChaCha20  │  │Gossip  │  │HW actions   │     │
-│  └────────┘  └──────────┘  └────────┘  └─────────────┘     │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │              orchestrator (FSM Engine)              │    │
+│  │  ColdStart → HWScan → SeedDiscovery → VectorRace    │    │
+│  │  → Connected → Degraded → HumanRequired → Terminated│    │
+│  └──────┬───────────┬──────────┬───────────┬───────────┘    │
+│         │           │          │           │                │
+│  ┌──────▼─┐  ┌──────▼───┐  ┌───▼────┐  ┌───▼─────────┐      │
+│  │vectors │  │resource  │  │  pow   │  │   trust     │      │
+│  │9 stubs │  │scheduler │  │Argon2id│  │SAS+WoT+TOFU │      │
+│  │Tier 0-4│  │5 tiers   │  │+nonce  │  │attestations │      │
+│  └────────┘  └──────────┘  └────────┘  └─────────────┘      │
+│         │           │          │           │                │
+│  ┌──────▼─┐  ┌──────▼──┐   ┌───▼────┐  ┌───▼─────────┐      │
+│  │hwscan  │  │  crypto  │  │  ota   │  │    cli      │      │
+│  │COM/USB │  │Ed25519   │  │MultiSig│  │ANSI prompts │      │
+│  │Audio   │  │Noise_XX  │  │Canary  │  │RU/EN locale │      │
+│  │Network │  │ChaCha20  │  │Gossip  │  │HW actions   │      │
+│  └────────┘  └──────────┘  └────────┘  └─────────────┘      │
 │                                                             │
 ├─────────────────────────────────────────────────────────────┤
 │  ebpf/ (Rust/Aya)                                           │
