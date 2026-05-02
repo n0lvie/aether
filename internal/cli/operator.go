@@ -55,7 +55,6 @@ type Language int
 
 const (
 	LangEN Language = iota
-	LangRU
 )
 
 // NewOperator creates a new CLI operator interface.
@@ -151,79 +150,39 @@ func (o *Operator) waitForConfirmation(ctx context.Context, action HumanAction) 
 
 // --- Output formatting ---
 
-// ANSI escape codes for terminal colors.
-const (
-	ansiReset    = "\033[0m"
-	ansiBold     = "\033[1m"
-	ansiRed      = "\033[31m"
-	ansiYellow   = "\033[33m"
-	ansiGreen    = "\033[32m"
-	ansiCyan     = "\033[36m"
-	ansiMagenta  = "\033[35m"
-	ansiBgRed    = "\033[41m"
-	ansiBgYellow = "\033[43m"
-)
-
 func (o *Operator) printPrompt(action HumanAction) {
 	prompts := GetPrompt(o.lang)
-
-	var priorityBadge string
-	switch action.Priority {
-	case PriorityCritical:
-		priorityBadge = fmt.Sprintf("%s%s ‼ CRITICAL %s", ansiBgRed, ansiBold, ansiReset)
-	case PriorityHigh:
-		priorityBadge = fmt.Sprintf("%s%s ⚠ HIGH     %s", ansiYellow, ansiBold, ansiReset)
-	default:
-		priorityBadge = fmt.Sprintf("%s%s ℹ INFO     %s", ansiCyan, ansiBold, ansiReset)
-	}
-
-	separator := fmt.Sprintf("%s%s%s", ansiMagenta, strings.Repeat("═", 60), ansiReset)
-
-	fmt.Fprintf(os.Stderr, "\n%s\n", separator)
-	fmt.Fprintf(os.Stderr, "%s  %s%s%s\n", priorityBadge, ansiBold, prompts.ActionRequired, ansiReset)
-	fmt.Fprintf(os.Stderr, "%s\n", separator)
-	fmt.Fprintf(os.Stderr, "\n")
-
-	// Use localized hardware action description if available
+	fmt.Fprintf(os.Stderr, "REQ: %s\n", action.ID)
+	
 	desc := action.Description
 	if localizedDesc, ok := prompts.HardwareActions[action.ID]; ok {
 		desc = localizedDesc
 	}
-	fmt.Fprintf(os.Stderr, "  %s%s%s\n", ansiBold, desc, ansiReset)
-	fmt.Fprintf(os.Stderr, "\n")
+	fmt.Fprintf(os.Stderr, "DESC: %s\n", desc)
 
 	if action.Deadline > 0 {
-		fmt.Fprintf(os.Stderr, "  %s%s: %s%s\n", ansiYellow, prompts.Timeout, action.Deadline, ansiReset)
+		fmt.Fprintf(os.Stderr, "TIMEOUT: %s\n", action.Deadline)
 	}
 
 	if action.Hardware != hwscan.HWNone {
-		fmt.Fprintf(os.Stderr, "  %s%s: %s%s\n",
-			ansiCyan, prompts.ExpectedDevice, action.Hardware.String(), ansiReset)
+		fmt.Fprintf(os.Stderr, "HW_EXPECT: %s\n", action.Hardware.String())
 	}
 
 	if action.Callback != nil {
-		fmt.Fprintf(os.Stderr, "\n  %s[%s]%s\n",
-			ansiGreen, prompts.AutoDetectEnabled, ansiReset)
+		fmt.Fprintf(os.Stderr, "AUTO_DETECT: ENABLED\n")
 	}
 
-	fmt.Fprintf(os.Stderr, "\n  %s%s%s\n", ansiBold, prompts.PressEnter, ansiReset)
-	fmt.Fprintf(os.Stderr, "%s\n", separator)
+	fmt.Fprintf(os.Stderr, "AWAIT: CONFIRM\n")
 }
 
 func (o *Operator) printConfirmed(action HumanAction) {
-	prompts := GetPrompt(o.lang)
-	fmt.Fprintf(os.Stderr, "  %s✓ %s%s\n\n",
-		ansiGreen, prompts.Confirmed, ansiReset)
+	fmt.Fprintf(os.Stderr, "STATUS: CONFIRMED\n")
 }
 
 func (o *Operator) printAutoDetected(action HumanAction) {
-	prompts := GetPrompt(o.lang)
-	fmt.Fprintf(os.Stderr, "  %s✓ %s %s%s\n\n",
-		ansiGreen, action.Hardware.String(), prompts.AutoDetected, ansiReset)
+	fmt.Fprintf(os.Stderr, "STATUS: HW_AUTO_DETECTED\n")
 }
 
 func (o *Operator) printTimeout(action HumanAction) {
-	prompts := GetPrompt(o.lang)
-	fmt.Fprintf(os.Stderr, "  %s✗ %s: %s%s\n\n",
-		ansiRed, prompts.Timeout, action.Description, ansiReset)
+	fmt.Fprintf(os.Stderr, "STATUS: TIMEOUT\n")
 }
