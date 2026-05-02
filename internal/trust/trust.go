@@ -7,11 +7,11 @@
 //
 // ATP solves this with 5 defense layers:
 //
-//   Layer 1: Argon2id PoW (Sybil barrier — already implemented)
-//   Layer 2: Noise_XX mutual authentication (key exchange)
-//   Layer 3: SAS verbal verification (human-verified, defeats MitM)
-//   Layer 4: Web of Trust with bounded transitivity (max 3 hops)
-//   Layer 5: Key Continuity / TOFU (long-term reputation)
+//	Layer 1: Argon2id PoW (Sybil barrier — already implemented)
+//	Layer 2: Noise_XX mutual authentication (key exchange)
+//	Layer 3: SAS verbal verification (human-verified, defeats MitM)
+//	Layer 4: Web of Trust with bounded transitivity (max 3 hops)
+//	Layer 5: Key Continuity / TOFU (long-term reputation)
 //
 // Against a state-level attacker:
 //   - Mass Sybil: Blocked by PoW (each node costs 64MB * 3 passes)
@@ -242,20 +242,24 @@ func (s *Store) GetPeer(pubKey [32]byte) *PeerRecord {
 
 // RecordFirstContact creates a TOFU entry for a newly encountered peer.
 // Returns false if the peer is already known (Key Continuity check needed).
+// For existing peers, updates LastSeen and increments InteractionCount.
 func (s *Store) RecordFirstContact(pubKey [32]byte) (isNew bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if _, exists := s.peers[pubKey]; exists {
+	if existing, exists := s.peers[pubKey]; exists {
+		existing.LastSeen = time.Now()
+		existing.InteractionCount++
 		return false
 	}
 
 	now := time.Now()
 	s.peers[pubKey] = &PeerRecord{
-		PubKey:    pubKey,
-		Trust:     TrustTOFU,
-		FirstSeen: now,
-		LastSeen:  now,
+		PubKey:           pubKey,
+		Trust:            TrustTOFU,
+		FirstSeen:        now,
+		LastSeen:         now,
+		InteractionCount: 1,
 	}
 	return true
 }
@@ -325,8 +329,8 @@ func (s *Store) AddAttestation(att Attestation) error {
 
 // DetectKeyChange checks if a peer's key has changed since last contact.
 // A key change is a CRITICAL security event — it could mean:
-//   1. The peer reinstalled (benign)
-//   2. A MitM is impersonating the peer (malicious)
+//  1. The peer reinstalled (benign)
+//  2. A MitM is impersonating the peer (malicious)
 //
 // Returns true if the key has changed (caller must alert the user).
 func (s *Store) DetectKeyChange(claimedPubKey [32]byte, previousPubKey [32]byte) bool {

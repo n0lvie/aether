@@ -6,11 +6,11 @@
 // spin up thousands of fake nodes.
 //
 // Protocol:
-//   1. Challenger sends: nonce(32) || difficulty(1) || timestamp(8) || challenger_pubkey(32)
-//   2. Solver finds solution_nonce such that:
-//      Argon2id(challenge || solution_nonce) has `difficulty` leading zero bits
-//   3. Solver returns: solution_nonce(32) || solver_pubkey(32) || signature(64)
-//   4. Challenger verifies in O(1): recompute Argon2id and check zero bits
+//  1. Challenger sends: nonce(32) || difficulty(1) || timestamp(8) || challenger_pubkey(32)
+//  2. Solver finds solution_nonce such that:
+//     Argon2id(challenge || solution_nonce) has `difficulty` leading zero bits
+//  3. Solver returns: solution_nonce(32) || solver_pubkey(32) || signature(64)
+//  4. Challenger verifies in O(1): recompute Argon2id and check zero bits
 //
 // The Argon2id parameters (time=3, memory=64MB, threads=4) are chosen so that:
 // - A legitimate node solves the puzzle in ~2-5 seconds

@@ -11,15 +11,15 @@ import (
 type TransportID uint8
 
 const (
-	TransportTCP     TransportID = 0x01
-	TransportQUIC    TransportID = 0x02 // HTTP/3 + ECH
-	TransportICMP    TransportID = 0x03
-	TransportLoRa    TransportID = 0x04
-	TransportBLE     TransportID = 0x05
-	TransportWebRTC  TransportID = 0x06
-	TransportDTN     TransportID = 0x07 // Delay-Tolerant Networking
-	TransportSMS     TransportID = 0x08
-	TransportAudio   TransportID = 0x09 // Ultrasonic / Softmodem
+	TransportTCP    TransportID = 0x01
+	TransportQUIC   TransportID = 0x02 // HTTP/3 + ECH
+	TransportICMP   TransportID = 0x03
+	TransportLoRa   TransportID = 0x04
+	TransportBLE    TransportID = 0x05
+	TransportWebRTC TransportID = 0x06
+	TransportDTN    TransportID = 0x07 // Delay-Tolerant Networking
+	TransportSMS    TransportID = 0x08
+	TransportAudio  TransportID = 0x09 // Ultrasonic / Softmodem
 )
 
 func (t TransportID) String() string {
@@ -43,11 +43,11 @@ func (t TransportID) String() string {
 // SeedNode is the compact, wire-format representation of a bootstrap node.
 // Format: PubKey(32) || TransportID(1) || IP(4 or 16) || Port(2) || Signature(64)
 type SeedNode struct {
-	PubKey      [32]byte    // Ed25519 public key
-	Transport   TransportID // How to connect
-	IP          net.IP      // IPv4 (4 bytes) or IPv6 (16 bytes)
-	Port        uint16      // Transport port (0 for portless transports like BLE)
-	Signature   [64]byte    // Ed25519 signature over PubKey||Transport||IP||Port
+	PubKey    [32]byte    // Ed25519 public key
+	Transport TransportID // How to connect
+	IP        net.IP      // IPv4 (4 bytes) or IPv6 (16 bytes)
+	Port      uint16      // Transport port (0 for portless transports like BLE)
+	Signature [64]byte    // Ed25519 signature over PubKey||Transport||IP||Port
 }
 
 // MarshalBinary encodes a SeedNode to its compact wire format.
@@ -105,10 +105,10 @@ func UnmarshalSeedNode(data []byte, ipv6 bool) (*SeedNode, error) {
 // Envelope is an encrypted packet wrapper using ChaCha20-Poly1305.
 // After the Noise handshake completes, all data flows through this format.
 type Envelope struct {
-	Version   uint8   // Protocol version (currently 0x01)
+	Version   uint8    // Protocol version (currently 0x01)
 	SessionID [16]byte // Identifies the Noise session
-	Counter   uint64  // Monotonic nonce counter (replay protection)
-	Payload   []byte  // ChaCha20-Poly1305 encrypted data
+	Counter   uint64   // Monotonic nonce counter (replay protection)
+	Payload   []byte   // ChaCha20-Poly1305 encrypted data
 	Tag       [16]byte // Poly1305 authentication tag
 }
 

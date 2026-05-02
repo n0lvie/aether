@@ -2,45 +2,48 @@
 // and configuration payloads within the encrypted Aether network.
 //
 // THREAT MODEL:
-//   A state actor compromises an Aether node and uses it to distribute
-//   poisoned ML model weights via Gossip protocol. The poisoned model
-//   deliberately weakens obfuscation, making Aether traffic detectable by DPI.
+//
+//	A state actor compromises an Aether node and uses it to distribute
+//	poisoned ML model weights via Gossip protocol. The poisoned model
+//	deliberately weakens obfuscation, making Aether traffic detectable by DPI.
 //
 // DEFENSE: 4-layer verification pipeline. An update must pass ALL layers.
 //
-//   Layer 1: Multi-Sig Quorum (Cryptographic Gate)
-//     - N developer Ed25519 public keys hardcoded in the binary
-//     - Requires M-of-N valid signatures (default: 3-of-5)
-//     - A poisoned update from a state actor lacks developer signatures → REJECTED
-//     - If all M developers are arrested: Emergency Key Rotation via network vote
+//	Layer 1: Multi-Sig Quorum (Cryptographic Gate)
+//	  - N developer Ed25519 public keys hardcoded in the binary
+//	  - Requires M-of-N valid signatures (default: 3-of-5)
+//	  - A poisoned update from a state actor lacks developer signatures → REJECTED
+//	  - If all M developers are arrested: Emergency Key Rotation via network vote
 //
-//   Layer 2: Payload Integrity (Content Hash)
-//     - SHA-256 hash of the model binary is signed, not just the metadata
-//     - Even 1-bit flip in model weights invalidates all signatures
-//     - Prevents partial corruption during Gossip relay
+//	Layer 2: Payload Integrity (Content Hash)
+//	  - SHA-256 hash of the model binary is signed, not just the metadata
+//	  - Even 1-bit flip in model weights invalidates all signatures
+//	  - Prevents partial corruption during Gossip relay
 //
-//   Layer 3: Canary Verification (Empirical Test)
-//     - Node does NOT blindly apply the new model
-//     - Runs both old and new models in parallel ("canary" mode)
-//     - Sends test traffic through both to known-good endpoints
-//     - If new model's traffic is blocked more often → REJECT and alert
-//     - This catches sophisticated attacks where developers are coerced
+//	Layer 3: Canary Verification (Empirical Test)
+//	  - Node does NOT blindly apply the new model
+//	  - Runs both old and new models in parallel ("canary" mode)
+//	  - Sends test traffic through both to known-good endpoints
+//	  - If new model's traffic is blocked more often → REJECT and alert
+//	  - This catches sophisticated attacks where developers are coerced
 //
-//   Layer 4: Gossip Reputation (Network Consensus)
-//     - Nodes that applied the update report outcomes via signed Gossip
-//     - Only reports from TrustSASVerified/TrustAttested peers are counted
-//     - If >30% of trusted peers report "model causes blocks" → QUARANTINE
-//     - Automatic rollback to previous model version
+//	Layer 4: Gossip Reputation (Network Consensus)
+//	  - Nodes that applied the update report outcomes via signed Gossip
+//	  - Only reports from TrustSASVerified/TrustAttested peers are counted
+//	  - If >30% of trusted peers report "model causes blocks" → QUARANTINE
+//	  - Automatic rollback to previous model version
 //
 // WHY NOT PURE MULTI-SIG:
-//   Developers can be arrested, coerced, or killed. The network must be
-//   able to survive total compromise of the developer team. Canary + Gossip
-//   provide empirical verification independent of any authority.
+//
+//	Developers can be arrested, coerced, or killed. The network must be
+//	able to survive total compromise of the developer team. Canary + Gossip
+//	provide empirical verification independent of any authority.
 //
 // WHY NOT PURE CONSENSUS:
-//   State actor can Sybil-attack the vote (PoW makes this expensive but not
-//   impossible for a nation-state). Multi-sig from hardcoded keys is the
-//   primary gate that consensus alone cannot replace.
+//
+//	State actor can Sybil-attack the vote (PoW makes this expensive but not
+//	impossible for a nation-state). Multi-sig from hardcoded keys is the
+//	primary gate that consensus alone cannot replace.
 package ota
 
 import (
@@ -86,7 +89,7 @@ type ModelUpdate struct {
 // UpdateSignature is a developer's Ed25519 signature on an update.
 type UpdateSignature struct {
 	SignerPubKey [32]byte
-	Signature   [64]byte
+	Signature    [64]byte
 }
 
 // SignablePayload returns the canonical bytes that developers sign.
@@ -115,8 +118,8 @@ func (u *ModelUpdate) ComputeHash() {
 // The binary must be built with `-ldflags` to inject them, or they are
 // embedded via `go:embed` from a signed keyring file.
 type DeveloperKeys struct {
-	Keys     [][32]byte
-	Quorum   int // M in M-of-N
+	Keys   [][32]byte
+	Quorum int // M in M-of-N
 }
 
 // DefaultDeveloperKeys returns the hardcoded developer keyring.
@@ -335,12 +338,12 @@ func (ga *GossipAggregator) AddReport(report PeerReport) {
 
 // ConsensusResult is the network's collective verdict on an update.
 type ConsensusResult struct {
-	Version        uint64
-	TotalReports   int
-	PositiveCount  int
-	NegativeCount  int
-	AvgBlockRate   float64
-	ShouldApply    bool
+	Version          uint64
+	TotalReports     int
+	PositiveCount    int
+	NegativeCount    int
+	AvgBlockRate     float64
+	ShouldApply      bool
 	ShouldQuarantine bool
 }
 
@@ -497,17 +500,26 @@ func (um *UpdateManager) ApplyUpdate(update *ModelUpdate) error {
 	um.mu.Lock()
 	defer um.mu.Unlock()
 
-	// Archive current model
-	if len(um.history) >= MaxModelVersions {
-		um.history = um.history[1:] // Drop oldest
+	// Archive current model to history (for rollback support).
+	// Only archive if we have a current version (skip on first apply).
+	if um.currentVersion > 0 {
+		if len(um.history) >= MaxModelVersions {
+			um.history = um.history[1:] // Drop oldest, keep last N-1
+		}
+		// Create a snapshot of the current state for rollback.
+		// In production, this would include the full model payload loaded from disk.
+		currentSnapshot := ModelUpdate{
+			Version: um.currentVersion,
+		}
+		um.history = append(um.history, currentSnapshot)
 	}
-	// (current model would be added to history here)
 
 	um.currentVersion = update.Version
 
 	um.log.Info("OTA update APPLIED",
 		"version", update.Version,
 		"hash", fmt.Sprintf("%x", update.ModelHash[:8]),
+		"history_depth", len(um.history),
 	)
 
 	return nil

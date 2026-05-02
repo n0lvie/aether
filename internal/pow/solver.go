@@ -30,11 +30,11 @@ func NewSolver(log *slog.Logger, privKey ed25519.PrivateKey) *Solver {
 // Solve attempts to find a solution nonce for the given challenge.
 //
 // Algorithm:
-//   1. Generate random candidate nonce
-//   2. Compute: hash = Argon2id(challenge_payload || candidate_nonce)
-//   3. Check: leading_zero_bits(hash) >= challenge.Difficulty
-//   4. If yes → sign and return solution
-//   5. If no → increment nonce and retry
+//  1. Generate random candidate nonce
+//  2. Compute: hash = Argon2id(challenge_payload || candidate_nonce)
+//  3. Check: leading_zero_bits(hash) >= challenge.Difficulty
+//  4. If yes → sign and return solution
+//  5. If no → increment nonce and retry
 //
 // The Argon2id computation is the bottleneck (~1-2 seconds per attempt).
 // With difficulty=20, the expected number of attempts is ~1 (since each

@@ -3,13 +3,18 @@
 package crypto
 
 import (
+	"crypto/aes"
+	"crypto/cipher"
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+
+	"golang.org/x/crypto/scrypt"
 )
 
 // Identity represents a node's cryptographic identity (Ed25519 keypair).
@@ -46,16 +51,25 @@ func GenerateIdentity() (*Identity, error) {
 	}, nil
 }
 
+const (
+	scryptN      = 32768
+	scryptR      = 8
+	scryptP      = 1
+	scryptKeyLen = 32
+	saltLen      = 16
+)
+
 // LoadOrCreateIdentity loads an identity from disk, or creates a new one
 // if the file does not exist. This ensures the node has a stable identity
 // across restarts — critical for Noise handshakes and PoW reputation.
 func LoadOrCreateIdentity(stateDir string) (*Identity, error) {
 	keyPath := filepath.Join(stateDir, "node.key")
+	passphrase := os.Getenv("AETHER_KEY_PASS")
 
 	// Attempt to load existing key
 	data, err := os.ReadFile(keyPath)
 	if err == nil {
-		return parseIdentity(data)
+		return parseIdentity(data, passphrase)
 	}
 	if !errors.Is(err, os.ErrNotExist) {
 		return nil, fmt.Errorf("read identity file: %w", err)
@@ -72,8 +86,17 @@ func LoadOrCreateIdentity(stateDir string) (*Identity, error) {
 		return nil, fmt.Errorf("create state dir: %w", err)
 	}
 
+	// Encrypt if passphrase provided
+	outData := []byte(id.PrivateKey)
+	if passphrase != "" {
+		outData, err = encryptKey(outData, passphrase)
+		if err != nil {
+			return nil, fmt.Errorf("encrypt key: %w", err)
+		}
+	}
+
 	// Store raw private key (64 bytes = 32 seed + 32 public)
-	if err := os.WriteFile(keyPath, id.PrivateKey, 0600); err != nil {
+	if err := os.WriteFile(keyPath, outData, 0600); err != nil {
 		return nil, fmt.Errorf("write identity file: %w", err)
 	}
 
@@ -81,15 +104,98 @@ func LoadOrCreateIdentity(stateDir string) (*Identity, error) {
 }
 
 // parseIdentity reconstructs an Identity from a raw private key file.
-func parseIdentity(data []byte) (*Identity, error) {
-	if len(data) != ed25519.PrivateKeySize {
-		return nil, fmt.Errorf("invalid key file: expected %d bytes, got %d",
-			ed25519.PrivateKeySize, len(data))
+func parseIdentity(data []byte, passphrase string) (*Identity, error) {
+	// If it has standard unencrypted length
+	if len(data) == ed25519.PrivateKeySize {
+		priv := ed25519.PrivateKey(data)
+		pub := priv.Public().(ed25519.PublicKey)
+		return &Identity{
+			PrivateKey: priv,
+			PublicKey:  pub,
+		}, nil
 	}
-	priv := ed25519.PrivateKey(data)
+
+	// Try to decrypt
+	if passphrase == "" {
+		return nil, fmt.Errorf("encrypted key file found, but AETHER_KEY_PASS is not set")
+	}
+
+	decrypted, err := decryptKey(data, passphrase)
+	if err != nil {
+		return nil, fmt.Errorf("decrypt key: %w", err)
+	}
+
+	if len(decrypted) != ed25519.PrivateKeySize {
+		return nil, fmt.Errorf("invalid decrypted key length")
+	}
+
+	priv := ed25519.PrivateKey(decrypted)
 	pub := priv.Public().(ed25519.PublicKey)
 	return &Identity{
 		PrivateKey: priv,
 		PublicKey:  pub,
 	}, nil
+}
+
+func encryptKey(data []byte, passphrase string) ([]byte, error) {
+	salt := make([]byte, saltLen)
+	if _, err := io.ReadFull(rand.Reader, salt); err != nil {
+		return nil, err
+	}
+
+	key, err := scrypt.Key([]byte(passphrase), salt, scryptN, scryptR, scryptP, scryptKeyLen)
+	if err != nil {
+		return nil, err
+	}
+
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, err
+	}
+
+	nonce := make([]byte, gcm.NonceSize())
+	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
+		return nil, err
+	}
+
+	ciphertext := gcm.Seal(nonce, nonce, data, nil)
+	return append(salt, ciphertext...), nil
+}
+
+func decryptKey(data []byte, passphrase string) ([]byte, error) {
+	if len(data) < saltLen {
+		return nil, fmt.Errorf("data too short")
+	}
+
+	salt := data[:saltLen]
+	ciphertextWithNonce := data[saltLen:]
+
+	key, err := scrypt.Key([]byte(passphrase), salt, scryptN, scryptR, scryptP, scryptKeyLen)
+	if err != nil {
+		return nil, err
+	}
+
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(ciphertextWithNonce) < gcm.NonceSize() {
+		return nil, fmt.Errorf("ciphertext too short")
+	}
+
+	nonce := ciphertextWithNonce[:gcm.NonceSize()]
+	ciphertext := ciphertextWithNonce[gcm.NonceSize():]
+
+	return gcm.Open(nil, nonce, ciphertext, nil)
 }

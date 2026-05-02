@@ -9,6 +9,10 @@
 // by extending the Noise handshake with a KEM encapsulation step.
 package crypto
 
+import (
+	"golang.org/x/crypto/curve25519"
+)
+
 // NoisePattern defines the Noise handshake pattern.
 const NoisePattern = "Noise_XX_25519_ChaChaPoly_SHA256"
 
@@ -42,8 +46,8 @@ type HandshakeState struct {
 // CipherState represents the symmetric encryption state after handshake completion.
 // Each direction (send/receive) gets its own CipherState with independent nonce counters.
 type CipherState struct {
-	Key     [32]byte // ChaCha20-Poly1305 key
-	Nonce   uint64   // Monotonic counter
+	Key   [32]byte // ChaCha20-Poly1305 key
+	Nonce uint64   // Monotonic counter
 }
 
 // SessionKeys holds the split cipher states after handshake completion.
@@ -73,9 +77,12 @@ func NewNoiseConfig(identity *Identity) *NoiseConfig {
 	cfg.StaticPrivateKey[31] &= 127
 	cfg.StaticPrivateKey[31] |= 64
 
-	// TODO: Compute X25519 public key from clamped private key
-	// For now, this is a placeholder — real implementation uses
-	// curve25519.ScalarBaseMult or the noise library's keypair functions.
+	// Compute X25519 public key from the clamped private key.
+	// curve25519.X25519 computes the Diffie-Hellman public value.
+	pub, err := curve25519.X25519(cfg.StaticPrivateKey[:], curve25519.Basepoint)
+	if err == nil && len(pub) == 32 {
+		copy(cfg.StaticPublicKey[:], pub)
+	}
 
 	return cfg
 }

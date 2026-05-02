@@ -206,10 +206,10 @@ func TestAdaptiveDifficulty(t *testing.T) {
 		attempts int
 		expected uint8
 	}{
-		{0, 12},       // Quiet: rate=0/s → <1/s
-		{90, 16},      // Normal: rate=1.5/s → >1/s, <10/s
-		{660, 20},     // Moderate: rate=11/s → >10/s, <100/s
-		{6001, 24},    // Heavy attack: rate=100+/s → >100/s
+		{0, 12},    // Quiet: rate=0/s → <1/s
+		{90, 16},   // Normal: rate=1.5/s → >1/s, <10/s
+		{660, 20},  // Moderate: rate=11/s → >10/s, <100/s
+		{6001, 24}, // Heavy attack: rate=100+/s → >100/s
 	}
 
 	for _, tt := range tests {

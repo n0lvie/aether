@@ -9,16 +9,18 @@ import (
 // NonceCache implements server-side nonce tracking for NTP-independent validation.
 //
 // Problem (NTP Drift):
-//   In an isolated network (Blackout), NTP servers are unreachable.
-//   Cheap quartz oscillators on routers/phones drift ~1-2 minutes/day.
-//   After a week offline, clocks can diverge by 10+ minutes.
-//   Absolute-time TTL checks (Challenge.IsExpired()) would reject
-//   legitimate nodes whose clocks have drifted.
+//
+//	In an isolated network (Blackout), NTP servers are unreachable.
+//	Cheap quartz oscillators on routers/phones drift ~1-2 minutes/day.
+//	After a week offline, clocks can diverge by 10+ minutes.
+//	Absolute-time TTL checks (Challenge.IsExpired()) would reject
+//	legitimate nodes whose clocks have drifted.
 //
 // Solution:
-//   The challenger issues a nonce and tracks it in a local cache.
-//   The nonce is valid until the challenger explicitly invalidates it
-//   (or the ring buffer overwrites it). No wall clock needed.
+//
+//	The challenger issues a nonce and tracks it in a local cache.
+//	The nonce is valid until the challenger explicitly invalidates it
+//	(or the ring buffer overwrites it). No wall clock needed.
 //
 // Implementation: Ring Buffer + HashMap for O(1) insert, O(1) lookup, O(1) eviction.
 //   - Ring buffer tracks insertion order for FIFO eviction
@@ -31,9 +33,9 @@ type NonceCache struct {
 	mu sync.RWMutex
 
 	// Ring buffer for O(1) FIFO eviction
-	ring    []ringEntry
-	head    int // Next write position
-	count   int // Current number of entries
+	ring  []ringEntry
+	head  int // Next write position
+	count int // Current number of entries
 
 	// HashMap for O(1) lookup
 	index map[[32]byte]int // nonce → ring index
@@ -46,7 +48,7 @@ type ringEntry struct {
 	difficulty uint8
 	createdAt  time.Time // Monotonic clock for diagnostics only
 	used       bool
-	occupied   bool      // Is this slot in use?
+	occupied   bool // Is this slot in use?
 }
 
 // DefaultMaxNonces is the maximum number of outstanding challenges.
@@ -132,7 +134,12 @@ func (nc *NonceCache) Invalidate(nonce [32]byte) {
 	if idx, exists := nc.index[nonce]; exists {
 		nc.ring[idx].occupied = false
 		delete(nc.index, nonce)
-		nc.count--
+		// Only decrement if count is positive to prevent underflow.
+		// Count can diverge from index size when ring buffer overwrites
+		// entries that were already invalidated.
+		if nc.count > 0 {
+			nc.count--
+		}
 	}
 }
 
@@ -157,6 +164,9 @@ func (nc *NonceCache) Cleanup(maxAge time.Duration) int {
 		if entry.used || now.Sub(entry.createdAt) > maxAge {
 			entry.occupied = false
 			delete(nc.index, nonce)
+			if nc.count > 0 {
+				nc.count--
+			}
 			removed++
 		}
 	}

@@ -21,9 +21,9 @@ import (
 // making this a reliable fallback even in restrictive environments.
 type ICMPTunnel struct{}
 
-func (v *ICMPTunnel) Name() string                         { return "icmp_tunnel" }
-func (v *ICMPTunnel) Tier() int                            { return 0 }
-func (v *ICMPTunnel) Priority() int                        { return 10 }
+func (v *ICMPTunnel) Name() string                            { return "icmp_tunnel" }
+func (v *ICMPTunnel) Tier() int                               { return 0 }
+func (v *ICMPTunnel) Priority() int                           { return 10 }
 func (v *ICMPTunnel) RequiresHardware() []hwscan.HardwareType { return nil } // Network stack only
 
 func (v *ICMPTunnel) Probe(ctx context.Context) (*orchestrator.Connection, error) {
@@ -57,9 +57,9 @@ func (v *ICMPTunnel) Maintain(ctx context.Context, conn *orchestrator.Connection
 // providing a completely out-of-band bootstrap mechanism.
 type ATModem struct{}
 
-func (v *ATModem) Name() string     { return "at_modem" }
-func (v *ATModem) Tier() int        { return 0 }
-func (v *ATModem) Priority() int    { return 20 }
+func (v *ATModem) Name() string  { return "at_modem" }
+func (v *ATModem) Tier() int     { return 0 }
+func (v *ATModem) Priority() int { return 20 }
 func (v *ATModem) RequiresHardware() []hwscan.HardwareType {
 	return []hwscan.HardwareType{hwscan.HWCellModem}
 }
@@ -85,9 +85,9 @@ func (v *ATModem) Maintain(ctx context.Context, conn *orchestrator.Connection) e
 // while the inner connection reaches an Aether relay.
 type ObfuscatedTLS struct{}
 
-func (v *ObfuscatedTLS) Name() string     { return "obfuscated_tls" }
-func (v *ObfuscatedTLS) Tier() int        { return 1 }
-func (v *ObfuscatedTLS) Priority() int    { return 10 }
+func (v *ObfuscatedTLS) Name() string                            { return "obfuscated_tls" }
+func (v *ObfuscatedTLS) Tier() int                               { return 1 }
+func (v *ObfuscatedTLS) Priority() int                           { return 10 }
 func (v *ObfuscatedTLS) RequiresHardware() []hwscan.HardwareType { return nil }
 
 func (v *ObfuscatedTLS) Probe(ctx context.Context) (*orchestrator.Connection, error) {
@@ -110,9 +110,9 @@ func (v *ObfuscatedTLS) Maintain(ctx context.Context, conn *orchestrator.Connect
 // legitimate API usage patterns.
 type LLMMimicry struct{}
 
-func (v *LLMMimicry) Name() string     { return "llm_mimicry" }
-func (v *LLMMimicry) Tier() int        { return 1 }
-func (v *LLMMimicry) Priority() int    { return 20 }
+func (v *LLMMimicry) Name() string                            { return "llm_mimicry" }
+func (v *LLMMimicry) Tier() int                               { return 1 }
+func (v *LLMMimicry) Priority() int                           { return 20 }
 func (v *LLMMimicry) RequiresHardware() []hwscan.HardwareType { return nil }
 
 func (v *LLMMimicry) Probe(ctx context.Context) (*orchestrator.Connection, error) {
@@ -135,9 +135,9 @@ func (v *LLMMimicry) Maintain(ctx context.Context, conn *orchestrator.Connection
 // in base64 within TXT records of trusted domains.
 type DoHOracle struct{}
 
-func (v *DoHOracle) Name() string     { return "doh_oracle" }
-func (v *DoHOracle) Tier() int        { return 2 }
-func (v *DoHOracle) Priority() int    { return 10 }
+func (v *DoHOracle) Name() string                            { return "doh_oracle" }
+func (v *DoHOracle) Tier() int                               { return 2 }
+func (v *DoHOracle) Priority() int                           { return 10 }
 func (v *DoHOracle) RequiresHardware() []hwscan.HardwareType { return nil }
 
 func (v *DoHOracle) Probe(ctx context.Context) (*orchestrator.Connection, error) {
@@ -160,9 +160,9 @@ func (v *DoHOracle) Maintain(ctx context.Context, conn *orchestrator.Connection)
 // a mesh network for short-range data relay.
 type BLEMesh struct{}
 
-func (v *BLEMesh) Name() string     { return "ble_mesh" }
-func (v *BLEMesh) Tier() int        { return 3 }
-func (v *BLEMesh) Priority() int    { return 10 }
+func (v *BLEMesh) Name() string  { return "ble_mesh" }
+func (v *BLEMesh) Tier() int     { return 3 }
+func (v *BLEMesh) Priority() int { return 10 }
 func (v *BLEMesh) RequiresHardware() []hwscan.HardwareType {
 	return []hwscan.HardwareType{hwscan.HWBLE}
 }
@@ -187,9 +187,9 @@ func (v *BLEMesh) Maintain(ctx context.Context, conn *orchestrator.Connection) e
 // locally and forwarded when a peer is encountered.
 type DTN struct{}
 
-func (v *DTN) Name() string     { return "dtn" }
-func (v *DTN) Tier() int        { return 3 }
-func (v *DTN) Priority() int    { return 50 }
+func (v *DTN) Name() string                            { return "dtn" }
+func (v *DTN) Tier() int                               { return 3 }
+func (v *DTN) Priority() int                           { return 50 }
 func (v *DTN) RequiresHardware() []hwscan.HardwareType { return nil }
 
 func (v *DTN) Probe(ctx context.Context) (*orchestrator.Connection, error) {
@@ -210,9 +210,9 @@ func (v *DTN) Maintain(ctx context.Context, conn *orchestrator.Connection) error
 // for message encoding, leveraging Meshtastic's existing mesh routing.
 type LoRaMeshtastic struct{}
 
-func (v *LoRaMeshtastic) Name() string     { return "lora_meshtastic" }
-func (v *LoRaMeshtastic) Tier() int        { return 4 }
-func (v *LoRaMeshtastic) Priority() int    { return 10 }
+func (v *LoRaMeshtastic) Name() string  { return "lora_meshtastic" }
+func (v *LoRaMeshtastic) Tier() int     { return 4 }
+func (v *LoRaMeshtastic) Priority() int { return 10 }
 func (v *LoRaMeshtastic) RequiresHardware() []hwscan.HardwareType {
 	return []hwscan.HardwareType{hwscan.HWLoRa}
 }
@@ -238,9 +238,9 @@ func (v *LoRaMeshtastic) Maintain(ctx context.Context, conn *orchestrator.Connec
 // when all digital infrastructure is blocked.
 type Softmodem struct{}
 
-func (v *Softmodem) Name() string     { return "softmodem" }
-func (v *Softmodem) Tier() int        { return 4 }
-func (v *Softmodem) Priority() int    { return 30 }
+func (v *Softmodem) Name() string  { return "softmodem" }
+func (v *Softmodem) Tier() int     { return 4 }
+func (v *Softmodem) Priority() int { return 30 }
 func (v *Softmodem) RequiresHardware() []hwscan.HardwareType {
 	return []hwscan.HardwareType{hwscan.HWPhoneLine, hwscan.HWAudioIn, hwscan.HWAudioOut}
 }

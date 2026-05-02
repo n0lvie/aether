@@ -106,7 +106,7 @@ func DefaultStateConfigs() map[State]StateConfig {
 		StateConnected: {
 			Timeout:       0, // No timeout — stay connected
 			MaxRetries:    0,
-			NextOnSuccess: StateConnected,   // Self-loop: still connected
+			NextOnSuccess: StateConnected, // Self-loop: still connected
 			NextOnFailure: StateDegraded,
 		},
 		StateDegraded: {
@@ -170,11 +170,11 @@ type Connection struct {
 
 // ConnectionQuality tracks real-time quality metrics.
 type ConnectionQuality struct {
-	RTT          time.Duration // Round-trip time
-	PacketLoss   float64       // 0.0 - 1.0
-	Bandwidth    uint64        // Bytes per second estimate
-	LastProbeAt  time.Time
-	ConsecFails  int           // Consecutive failed probes
+	RTT         time.Duration // Round-trip time
+	PacketLoss  float64       // 0.0 - 1.0
+	Bandwidth   uint64        // Bytes per second estimate
+	LastProbeAt time.Time
+	ConsecFails int // Consecutive failed probes
 }
 
 // IsHealthy returns true if the connection is usable.

@@ -1,25 +1,27 @@
 // Package resource implements the adaptive Resource Scheduler for Project Aether.
 //
 // PROBLEM:
-//   In a Blackout scenario, Aether runs on battery-powered devices:
-//   smartphones (Android/iOS), laptops, routers on power banks.
-//   The daemon's aggressive behavior — parallel vector racing, Argon2id
-//   computation, ML inference, Gossip protocol — drains batteries fast.
-//   A dead device is a dead mesh node. Kill too many nodes → topology collapse.
+//
+//	In a Blackout scenario, Aether runs on battery-powered devices:
+//	smartphones (Android/iOS), laptops, routers on power banks.
+//	The daemon's aggressive behavior — parallel vector racing, Argon2id
+//	computation, ML inference, Gossip protocol — drains batteries fast.
+//	A dead device is a dead mesh node. Kill too many nodes → topology collapse.
 //
 // SOLUTION:
-//   The Resource Scheduler reads system metrics (battery, CPU, memory, thermal)
-//   and dynamically adjusts the daemon's behavior across 5 Power Tiers.
-//   Each tier throttles specific subsystems to extend device lifetime.
+//
+//	The Resource Scheduler reads system metrics (battery, CPU, memory, thermal)
+//	and dynamically adjusts the daemon's behavior across 5 Power Tiers.
+//	Each tier throttles specific subsystems to extend device lifetime.
 //
 // DESIGN PRINCIPLES:
-//   1. The daemon MUST NOT kill its host. Self-preservation of the device
-//      takes absolute priority over network participation.
-//   2. Graceful degradation: shed load gradually, don't cliff-edge.
-//   3. Role demotion: Relay → Client → Hibernate. Never the reverse unless
-//      power is restored (charger connected, solar panel, etc.).
-//   4. State persistence: save state to disk before emergency shutdown
-//      so the node can resume instantly when power returns.
+//  1. The daemon MUST NOT kill its host. Self-preservation of the device
+//     takes absolute priority over network participation.
+//  2. Graceful degradation: shed load gradually, don't cliff-edge.
+//  3. Role demotion: Relay → Client → Hibernate. Never the reverse unless
+//     power is restored (charger connected, solar panel, etc.).
+//  4. State persistence: save state to disk before emergency shutdown
+//     so the node can resume instantly when power returns.
 package resource
 
 import (
@@ -237,12 +239,14 @@ func (f *FallbackMetricsProvider) Platform() string { return "fallback" }
 // LinuxMetricsProvider reads battery info from /sys/class/power_supply/.
 //
 // Paths:
-//   /sys/class/power_supply/BAT0/capacity         → battery percent
-//   /sys/class/power_supply/BAT0/status            → "Charging", "Discharging", "Full"
-//   /sys/class/thermal/thermal_zone0/temp           → CPU temperature (millidegrees)
+//
+//	/sys/class/power_supply/BAT0/capacity         → battery percent
+//	/sys/class/power_supply/BAT0/status            → "Charging", "Discharging", "Full"
+//	/sys/class/thermal/thermal_zone0/temp           → CPU temperature (millidegrees)
 //
 // On OpenWrt routers without battery:
-//   Falls back to FallbackMetricsProvider behavior.
+//
+//	Falls back to FallbackMetricsProvider behavior.
 type LinuxMetricsProvider struct {
 	batteryPath string // e.g., "/sys/class/power_supply/BAT0"
 }
@@ -376,15 +380,18 @@ func (s *Scheduler) Evaluate() (*PowerTier, error) {
 
 	// Apply thermal throttle override: if device is overheating,
 	// demote by one tier regardless of battery level.
+	// NodeRole enum: Relay(0) < Client(1) < LowPower(2) < Hibernate(3) < Shutdown(4).
+	// We only demote if current target is more aggressive than LowPower.
 	if metrics.ThermalThrottling && targetTier.Role < RoleLowPower {
+		demotedRole := targetTier.Role + 1
 		for i := range s.tiers {
-			if s.tiers[i].Role == targetTier.Role+1 {
-				targetTier = &s.tiers[i]
+			if s.tiers[i].Role == demotedRole {
 				s.log.Warn("thermal throttle: demoting role",
-					"from", targetTier.Role-1,
-					"to", targetTier.Role,
+					"from", targetTier.Role,
+					"to", s.tiers[i].Role,
 					"cpu_temp", "throttled",
 				)
+				targetTier = &s.tiers[i]
 				break
 			}
 		}

@@ -137,34 +137,34 @@ func TestVerifyQuorum_DuplicateSigners(t *testing.T) {
 
 func TestCanaryVerification(t *testing.T) {
 	tests := []struct {
-		name        string
-		oldBlocked  int
-		newBlocked  int
-		total       int
+		name          string
+		oldBlocked    int
+		newBlocked    int
+		total         int
 		expectVerdict CanaryVerdict
 	}{
 		{
-			name: "new model is better",
+			name:       "new model is better",
 			oldBlocked: 5, newBlocked: 2, total: 100,
 			expectVerdict: CanaryPass,
 		},
 		{
-			name: "new model is same",
+			name:       "new model is same",
 			oldBlocked: 10, newBlocked: 10, total: 100,
 			expectVerdict: CanaryPass,
 		},
 		{
-			name: "new model slightly worse (within threshold)",
+			name:       "new model slightly worse (within threshold)",
 			oldBlocked: 10, newBlocked: 25, total: 100,
 			expectVerdict: CanaryPass, // 15% increase < 20% threshold
 		},
 		{
-			name: "POISONED: new model much worse",
+			name:       "POISONED: new model much worse",
 			oldBlocked: 5, newBlocked: 50, total: 100,
 			expectVerdict: CanaryFail, // 45% increase > 20% threshold
 		},
 		{
-			name: "too few probes for conclusion",
+			name:       "too few probes for conclusion",
 			oldBlocked: 1, newBlocked: 3, total: 5,
 			expectVerdict: CanaryInconclusive,
 		},

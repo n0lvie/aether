@@ -5,15 +5,15 @@ package cli
 
 // PromptSet holds all prompts for a given language.
 type PromptSet struct {
-	ActionRequired      string
-	PressEnter          string
-	Timeout             string
-	Confirmed           string
-	AutoDetected        string
-	ExpectedDevice      string
-	AutoDetectEnabled   string
-	AbortHint           string
-	HardwareActions     map[string]string
+	ActionRequired    string
+	PressEnter        string
+	Timeout           string
+	Confirmed         string
+	AutoDetected      string
+	ExpectedDevice    string
+	AutoDetectEnabled string
+	AbortHint         string
+	HardwareActions   map[string]string
 }
 
 // Prompts is a map of language → prompt set.

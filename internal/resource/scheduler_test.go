@@ -9,10 +9,10 @@ import (
 
 // mockMetricsProvider returns configurable metrics for testing.
 type mockMetricsProvider struct {
-	battery   int
-	charging  bool
-	thermal   bool
-	cpuUsage  int
+	battery  int
+	charging bool
+	thermal  bool
+	cpuUsage int
 }
 
 func (m *mockMetricsProvider) Collect() (HostMetrics, error) {

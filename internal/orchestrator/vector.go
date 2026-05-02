@@ -11,11 +11,12 @@ import (
 // Each vector represents one method of establishing a tunnel to the Aether network.
 //
 // Vectors are organized into tiers (0-4) representing escalation levels:
-//   Tier 0: Kernel-level (eBPF stealth, ICMP tunnels, AT commands)
-//   Tier 1: Obfuscated internet (ECH, LLM mimicry, WebRTC cover)
-//   Tier 2: Decentralized discovery (DoH, Domain Fronting, blockchain)
-//   Tier 3: Local swarm (AWDL, Wi-Fi Aware, BLE Mesh, Ultrasonic, DTN)
-//   Tier 4: Hardware fallback (LoRa, SDR, Softmodem)
+//
+//	Tier 0: Kernel-level (eBPF stealth, ICMP tunnels, AT commands)
+//	Tier 1: Obfuscated internet (ECH, LLM mimicry, WebRTC cover)
+//	Tier 2: Decentralized discovery (DoH, Domain Fronting, blockchain)
+//	Tier 3: Local swarm (AWDL, Wi-Fi Aware, BLE Mesh, Ultrasonic, DTN)
+//	Tier 4: Hardware fallback (LoRa, SDR, Softmodem)
 type Vector interface {
 	// Name returns a unique identifier for this vector.
 	Name() string

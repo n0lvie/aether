@@ -52,7 +52,7 @@ type Orchestrator struct {
 	seedsMu sync.RWMutex
 
 	// Lifecycle
-	runCtx context.Context    // Stored from Run() for child goroutines
+	runCtx context.Context // Stored from Run() for child goroutines
 	cancel context.CancelFunc
 	done   chan struct{}
 }
@@ -382,15 +382,9 @@ func (o *Orchestrator) execSeedDiscovery(ctx context.Context) (State, error) {
 // buildSeedOracles returns the available seed discovery oracles.
 // In production, these would be populated from configuration.
 func (o *Orchestrator) buildSeedOracles() []SeedOracle {
-	// Oracle registration is done by the caller via AddSeedOracle().
-	// Currently returns empty — vectors handle discovery themselves.
-	// Future oracles:
-	//   - DoH TXT record oracle (queries DNS-over-HTTPS for seed TXT records)
-	//   - Domain Fronting oracle (CDN-tunneled seed requests)
-	//   - AT-command oracle (SMS/USSD queries via cell modem)
-	//   - Blockchain oracle (reads seed info from smart contracts)
-	//   - ICMP echo oracle (probes known IP ranges for Aether nodes)
-	return nil
+	return []SeedOracle{
+		NewDoHOracle("seeds.aether.network"),
+	}
 }
 
 // execVectorRace runs the Aggressive Happy Eyeballs algorithm.
@@ -431,10 +425,16 @@ func (o *Orchestrator) execConnected(ctx context.Context) (State, error) {
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
 
+	// Periodic cleanup to prevent stale connection accumulation
+	cleanupTicker := time.NewTicker(60 * time.Second)
+	defer cleanupTicker.Stop()
+
 	for {
 		select {
 		case <-ctx.Done():
 			return StateTerminated, ctx.Err()
+		case <-cleanupTicker.C:
+			o.pruneDeadConnections()
 		case <-ticker.C:
 			o.connMu.RLock()
 			healthy := false
@@ -542,6 +542,15 @@ func (o *Orchestrator) transitionTo(next State, reason string) {
 // The goroutine is derived from the orchestrator's run context, ensuring
 // it is cancelled on shutdown (fixes orphaned goroutine bug).
 func (o *Orchestrator) maintainConnection(v Vector, conn *Connection) {
+	// Guard: if Run() hasn't been called yet, runCtx may be nil.
+	if o.runCtx == nil {
+		o.log.Error("maintainConnection called before Run() — cannot start maintenance",
+			"vector", v.Name(),
+		)
+		conn.Quality.ConsecFails = 999
+		return
+	}
+
 	// Derive from runCtx so shutdown cancels all maintenance goroutines.
 	// Previously used context.Background() which leaked goroutines.
 	ctx, cancel := context.WithCancel(o.runCtx)
@@ -558,6 +567,33 @@ func (o *Orchestrator) maintainConnection(v Vector, conn *Connection) {
 
 	// Mark connection as unhealthy
 	conn.Quality.ConsecFails = 999
+}
+
+// pruneDeadConnections removes connections that are no longer healthy
+// from the connections slice. This prevents unbounded memory growth
+// in long-running daemons.
+func (o *Orchestrator) pruneDeadConnections() {
+	o.connMu.Lock()
+	defer o.connMu.Unlock()
+
+	alive := make([]*Connection, 0, len(o.connections))
+	pruned := 0
+	for _, conn := range o.connections {
+		if conn.Quality.ConsecFails >= 999 {
+			// Cancel the maintenance goroutine if still running
+			if conn.Cancel != nil {
+				conn.Cancel()
+			}
+			pruned++
+			continue
+		}
+		alive = append(alive, conn)
+	}
+	o.connections = alive
+
+	if pruned > 0 {
+		o.log.Info("pruned dead connections", "count", pruned, "remaining", len(alive))
+	}
 }
 
 // buildHumanActions generates context-aware actions based on missing hardware.

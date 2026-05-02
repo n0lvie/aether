@@ -7,19 +7,19 @@ package hwscan
 type HardwareType uint16
 
 const (
-	HWNone         HardwareType = 0
-	HWCellModem    HardwareType = 1 << iota // AT-command compatible cellular modem
-	HWLoRa                                  // LoRa/Meshtastic transceiver (USB serial)
-	HWSDR                                   // Software Defined Radio (RTL-SDR, HackRF)
-	HWAudioIn                               // Microphone (for ultrasonic RX)
-	HWAudioOut                              // Speaker (for ultrasonic TX)
-	HWPhoneLine                             // Analog phone line (for softmodem)
-	HWWiFi                                  // Wi-Fi adapter
-	HWWiFiMonitor                           // Wi-Fi adapter with monitor mode
-	HWWiFiAware                             // Wi-Fi Aware (Android NAN)
-	HWBLE                                   // Bluetooth Low Energy adapter
-	HWAWDL                                  // Apple Wireless Direct Link
-	HWEthernet                              // Wired ethernet
+	HWNone        HardwareType = 0
+	HWCellModem   HardwareType = 1 << iota // AT-command compatible cellular modem
+	HWLoRa                                 // LoRa/Meshtastic transceiver (USB serial)
+	HWSDR                                  // Software Defined Radio (RTL-SDR, HackRF)
+	HWAudioIn                              // Microphone (for ultrasonic RX)
+	HWAudioOut                             // Speaker (for ultrasonic TX)
+	HWPhoneLine                            // Analog phone line (for softmodem)
+	HWWiFi                                 // Wi-Fi adapter
+	HWWiFiMonitor                          // Wi-Fi adapter with monitor mode
+	HWWiFiAware                            // Wi-Fi Aware (Android NAN)
+	HWBLE                                  // Bluetooth Low Energy adapter
+	HWAWDL                                 // Apple Wireless Direct Link
+	HWEthernet                             // Wired ethernet
 )
 
 // String returns a human-readable name for a hardware type.

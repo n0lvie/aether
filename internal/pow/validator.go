@@ -62,21 +62,21 @@ func (v *Validator) NonceCache() *NonceCache {
 
 // ValidationResult describes the outcome of a PoW validation.
 type ValidationResult struct {
-	Valid          bool
-	Reason         string
-	LeadingZeros   int
-	ComputeTime    time.Duration
+	Valid        bool
+	Reason       string
+	LeadingZeros int
+	ComputeTime  time.Duration
 }
 
 // Validate checks a solution against its challenge.
 //
 // Steps:
-//   1. Check challenge HMAC (not tampered)
-//   2. Check challenge timestamp (not expired)
-//   3. Check solver public key (not banned)
-//   4. Check rate limit (not flooding)
-//   5. Verify Ed25519 signature (solver owns the key)
-//   6. Recompute Argon2id and check leading zero bits
+//  1. Check challenge HMAC (not tampered)
+//  2. Check challenge timestamp (not expired)
+//  3. Check solver public key (not banned)
+//  4. Check rate limit (not flooding)
+//  5. Verify Ed25519 signature (solver owns the key)
+//  6. Recompute Argon2id and check leading zero bits
 func (v *Validator) Validate(challenge *Challenge, solution *Solution) ValidationResult {
 	start := time.Now()
 
@@ -165,12 +165,12 @@ func (v *Validator) Validate(challenge *Challenge, solution *Solution) Validatio
 // This is the NTP-drift-immune validation path for Blackout scenarios.
 //
 // Steps:
-//   1. Check challenge HMAC (not tampered)
-//   2. Check nonce in cache (replaces timestamp check)
-//   3. Check solver public key (not banned)
-//   4. Check rate limit (not flooding)
-//   5. Verify Ed25519 signature (solver owns the key)
-//   6. Recompute Argon2id and check leading zero bits
+//  1. Check challenge HMAC (not tampered)
+//  2. Check nonce in cache (replaces timestamp check)
+//  3. Check solver public key (not banned)
+//  4. Check rate limit (not flooding)
+//  5. Verify Ed25519 signature (solver owns the key)
+//  6. Recompute Argon2id and check leading zero bits
 func (v *Validator) ValidateOffline(challenge *Challenge, solution *Solution) ValidationResult {
 	start := time.Now()
 
@@ -294,7 +294,7 @@ func (v *Validator) checkRateLimit(pubKey [32]byte) bool {
 	now := time.Now()
 	cutoff := now.Add(-time.Minute)
 
-	// Clean old entries
+	// Clean old entries for this pubkey
 	times := v.rateLimiter[pubKey]
 	var recent []time.Time
 	for _, t := range times {
@@ -302,7 +302,13 @@ func (v *Validator) checkRateLimit(pubKey [32]byte) bool {
 			recent = append(recent, t)
 		}
 	}
-	v.rateLimiter[pubKey] = recent
+
+	// Remove the key entirely if no recent activity (prevents map growth)
+	if len(recent) == 0 {
+		delete(v.rateLimiter, pubKey)
+	} else {
+		v.rateLimiter[pubKey] = recent
+	}
 
 	return len(recent) < v.MaxSolutionsPerMinute
 }
@@ -311,4 +317,32 @@ func (v *Validator) recordSolution(pubKey [32]byte) {
 	v.rlMu.Lock()
 	defer v.rlMu.Unlock()
 	v.rateLimiter[pubKey] = append(v.rateLimiter[pubKey], time.Now())
+}
+
+// CleanupRateLimiter removes stale entries from the rate limiter map.
+// Should be called periodically (e.g., every 5 minutes) to prevent
+// unbounded memory growth from many unique pubkeys.
+// Returns the number of entries removed.
+func (v *Validator) CleanupRateLimiter() int {
+	v.rlMu.Lock()
+	defer v.rlMu.Unlock()
+
+	cutoff := time.Now().Add(-5 * time.Minute)
+	removed := 0
+
+	for pubKey, times := range v.rateLimiter {
+		// If the most recent entry is older than the cutoff, remove entirely
+		if len(times) == 0 {
+			delete(v.rateLimiter, pubKey)
+			removed++
+			continue
+		}
+		latestTime := times[len(times)-1]
+		if latestTime.Before(cutoff) {
+			delete(v.rateLimiter, pubKey)
+			removed++
+		}
+	}
+
+	return removed
 }

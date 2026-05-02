@@ -2,8 +2,10 @@ package orchestrator
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	"log/slog"
+	"math/big"
 	"sync"
 	"time"
 )
@@ -90,10 +92,13 @@ func (he *HappyEyeballs) Race(ctx context.Context) (*RaceResult, error) {
 			go func(v Vector, delay time.Duration) {
 				defer wg.Done()
 
-				// Wait for tier delay (or cancellation)
+				// Wait for tier delay with jitter (or cancellation).
+				// Jitter prevents thundering herd when multiple Aether nodes
+				// in the same mesh start racing simultaneously.
 				if delay > 0 {
+					jittered := addJitter(delay, 25) // ±25% jitter
 					select {
-					case <-time.After(delay):
+					case <-time.After(jittered):
 					case <-raceCtx.Done():
 						return
 					}
@@ -225,4 +230,27 @@ func summarizeErrors(results []RaceResult) string {
 		summary += fmt.Sprintf("%s: %v", r.Vector.Name(), r.Error)
 	}
 	return summary
+}
+
+// addJitter adds random jitter of ±pct% to a duration.
+// Uses crypto/rand for unpredictable jitter across network nodes.
+func addJitter(d time.Duration, pct int) time.Duration {
+	if pct <= 0 || d <= 0 {
+		return d
+	}
+	// Jitter range: d * (100-pct)/100 to d * (100+pct)/100
+	// Generate random number in [0, 2*pct*d/100]
+	jitterRange := int64(d) * int64(2*pct) / 100
+	if jitterRange <= 0 {
+		return d
+	}
+
+	n, err := rand.Int(rand.Reader, big.NewInt(jitterRange))
+	if err != nil {
+		return d // Fallback: no jitter on error
+	}
+
+	// Shift to [-pct%, +pct%]
+	offset := n.Int64() - jitterRange/2
+	return d + time.Duration(offset)
 }
