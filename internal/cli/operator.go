@@ -55,6 +55,7 @@ type Language int
 
 const (
 	LangEN Language = iota
+	LangRU
 )
 
 // NewOperator creates a new CLI operator interface.
@@ -171,9 +172,9 @@ func (o *Operator) printPrompt(action HumanAction) {
 	case PriorityCritical:
 		priorityBadge = fmt.Sprintf("%s%s ‼ CRITICAL %s", ansiBgRed, ansiBold, ansiReset)
 	case PriorityHigh:
-		priorityBadge = fmt.Sprintf("%s%s ⚠ HIGH %s", ansiYellow, ansiBold, ansiReset)
+		priorityBadge = fmt.Sprintf("%s%s ⚠ HIGH     %s", ansiYellow, ansiBold, ansiReset)
 	default:
-		priorityBadge = fmt.Sprintf("%s%s ℹ INFO %s", ansiCyan, ansiBold, ansiReset)
+		priorityBadge = fmt.Sprintf("%s%s ℹ INFO     %s", ansiCyan, ansiBold, ansiReset)
 	}
 
 	separator := fmt.Sprintf("%s%s%s", ansiMagenta, strings.Repeat("═", 60), ansiReset)

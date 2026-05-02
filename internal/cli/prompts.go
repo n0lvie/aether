@@ -37,6 +37,25 @@ var Prompts = map[Language]PromptSet{
 			"generic_network": "Establish any network connection (Wi-Fi, Ethernet, USB tethering)",
 		},
 	},
+	LangRU: {
+		ActionRequired:    "AETHER :: ТРЕБУЕТСЯ ДЕЙСТВИЕ ОПЕРАТОРА",
+		PressEnter:        "Нажмите Enter по завершении (или q для отмены)...",
+		Timeout:           "Таймаут ожидания",
+		Confirmed:         "Подтверждено. Повторное сканирование оборудования...",
+		AutoDetected:      "Устройство обнаружено автоматически!",
+		ExpectedDevice:    "Ожидаемое устройство",
+		AutoDetectEnabled: "Автообнаружение включено — устройство будет обнаружено автоматически",
+		AbortHint:         "Введите 'q' или 'exit' для отмены",
+		HardwareActions: map[string]string{
+			"attach_lora":     "Подключите приемопередатчик LoRa/Meshtastic к порту USB",
+			"attach_modem":    "Подключите USB-модем с активной SIM-картой",
+			"connect_phone":   "Подключите аналоговую телефонную линию к модему",
+			"attach_sdr":      "Подключите SDR-приемник (RTL-SDR/HackRF) к порту USB",
+			"enable_hotspot":  "Включите точку доступа Wi-Fi на телефоне и подключитесь по USB",
+			"position_sdr":    "Направьте антенну SDR на указанный азимут",
+			"generic_network": "Установите любое сетевое подключение (Wi-Fi, Ethernet, USB-модем)",
+		},
+	},
 }
 
 // GetPrompt returns the prompt set for the given language.
