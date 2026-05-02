@@ -488,7 +488,7 @@ func (o *Orchestrator) execHumanRequired(ctx context.Context) (State, error) {
 		actions = append(actions, cli.HumanAction{
 			ID:          "generic_network",
 			Priority:    cli.PriorityHigh,
-			Description: "Обеспечьте любое сетевое подключение (Wi-Fi, Ethernet, USB-tethering)",
+			Description: "ESTABLISH_NETWORK_LINK",
 			Deadline:    0, // Wait forever
 		})
 	}
@@ -604,7 +604,7 @@ func (o *Orchestrator) buildHumanActions() []cli.HumanAction {
 		actions = append(actions, cli.HumanAction{
 			ID:          "attach_lora",
 			Priority:    cli.PriorityHigh,
-			Description: "Подключите LoRa/Meshtastic трансивер к USB-порту",
+			Description: "CONNECT_LORA_USB",
 			Hardware:    hwscan.HWLoRa,
 			Deadline:    5 * time.Minute,
 		})
@@ -614,7 +614,7 @@ func (o *Orchestrator) buildHumanActions() []cli.HumanAction {
 		actions = append(actions, cli.HumanAction{
 			ID:          "attach_modem",
 			Priority:    cli.PriorityNormal,
-			Description: "Подключите USB-модем с SIM-картой",
+			Description: "CONNECT_MODEM_SIM",
 			Hardware:    hwscan.HWCellModem,
 			Deadline:    5 * time.Minute,
 		})
@@ -624,7 +624,7 @@ func (o *Orchestrator) buildHumanActions() []cli.HumanAction {
 		actions = append(actions, cli.HumanAction{
 			ID:          "connect_phone",
 			Priority:    cli.PriorityNormal,
-			Description: "Подключите аналоговую телефонную линию к модему",
+			Description: "CONNECT_ANALOG_PHONE",
 			Hardware:    hwscan.HWPhoneLine,
 			Deadline:    10 * time.Minute,
 		})
@@ -634,7 +634,7 @@ func (o *Orchestrator) buildHumanActions() []cli.HumanAction {
 		actions = append(actions, cli.HumanAction{
 			ID:          "attach_sdr",
 			Priority:    cli.PriorityNormal,
-			Description: "Подключите SDR-приёмник (RTL-SDR/HackRF) к USB-порту",
+			Description: "CONNECT_SDR_USB",
 			Hardware:    hwscan.HWSDR,
 			Deadline:    5 * time.Minute,
 		})

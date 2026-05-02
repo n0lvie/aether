@@ -42,13 +42,13 @@ Project Aether is a purely functional, indifferent network connectivity daemon d
 
 | Module | Purpose | Tests |
 |--------|---------|-------|
-| **orchestrator** | FSM engine + Aggressive Happy Eyeballs parallel racing | — |
+| **orchestrator** | FSM engine + Aggressive Happy Eyeballs parallel racing | 1 |
 | **vectors** | 9 connectivity stubs: ICMP, AT Modem, ECH/TLS, LLM Mimicry, DoH, BLE, DTN, LoRa, Softmodem | — |
 | **pow** | Argon2id Proof-of-Work with O(1) ring buffer nonce cache | 10 |
 | **trust** | 5-layer Aether Trust Protocol: PoW → Noise_XX → SAS → Web of Trust → TOFU | 7 |
 | **ota** | 4-layer OTA anti-poisoning: Multi-Sig quorum → SHA-256 → Canary A/B → Gossip reputation | 11 |
 | **resource** | 5-tier adaptive power management: Relay → Client → LowPower → Hibernate → Shutdown | 14 |
-| **crypto** | Ed25519 identity, Noise_XX handshake, ChaCha20-Poly1305 envelopes | — |
+| **crypto** | Ed25519 identity, Noise_XX handshake, ChaCha20-Poly1305 envelopes | 9 |
 | **hwscan** | Parallel COM/USB/Audio/Network hardware discovery | — |
 | **cli** | Minimalist human-operator interface for hardware intervention | — |
 
