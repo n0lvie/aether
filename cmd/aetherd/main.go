@@ -102,8 +102,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Banner
-	printBanner()
+	// Init Log
+	fmt.Fprintf(os.Stderr, "[AETHER] INIT: v%s\n", version)
 
 	// Register all connectivity vectors
 	registry := orchestrator.NewVectorRegistry()
@@ -148,6 +148,3 @@ func defaultStateDir() string {
 	return filepath.Join(home, ".aether")
 }
 
-func printBanner() {
-	fmt.Fprintf(os.Stderr, "[SYS] aetherd v%s initializing...\n", version)
-}

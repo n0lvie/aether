@@ -2,9 +2,9 @@
 
 **Autonomous Zero-Config Connectivity Daemon**
 
-> *"The last packet standing."*
+> *"A rational, indifferent instrument. Objective: establish global network access by any means and at any cost."*
 
-Project Aether is a self-healing network connectivity daemon designed to maintain internet access under conditions of total censorship, DPI-based blocking, and network blackouts. It operates as a benign network agent that exploits every available hardware and software capability to establish a resilient tunnel.
+Project Aether is a purely functional, indifferent network connectivity daemon designed to maintain internet access under conditions of total censorship, DPI-based blocking, and network blackouts. It operates as a universal tool that systematically exploits every available hardware and software capability to establish a resilient tunnel.
 
 ## Architecture
 
@@ -21,14 +21,14 @@ Project Aether is a self-healing network connectivity daemon designed to maintai
 │         │           │          │           │                │
 │  ┌──────▼─┐  ┌──────▼───┐  ┌───▼────┐  ┌───▼─────────┐      │
 │  │vectors │  │resource  │  │  pow   │  │   trust     │      │
-│  │9 stubs │  │scheduler │  │Argon2id│  │SAS+WoT+TOFU │      │
+│  │9 stubs │  │5 tiers   │  │Argon2id│  │SAS+WoT+TOFU │      │
 │  │Tier 0-4│  │5 tiers   │  │+nonce  │  │attestations │      │
 │  └────────┘  └──────────┘  └────────┘  └─────────────┘      │
 │         │           │          │           │                │
 │  ┌──────▼─┐  ┌──────▼───┐  ┌───▼────┐  ┌───▼─────────┐      │
 │  │hwscan  │  │  crypto  │  │  ota   │  │    cli      │      │
-│  │COM/USB │  │Ed25519   │  │MultiSig│  │ANSI prompts │      │
-│  │Audio   │  │Noise_XX  │  │Canary  │  │RU/EN locale │      │
+│  │COM/USB │  │Ed25519   │  │MultiSig│  │Minimal UI   │      │
+│  │Audio   │  │Noise_XX  │  │Canary  │  │Rational text│      │
 │  │Network │  │ChaCha20  │  │Gossip  │  │HW actions   │      │
 │  └────────┘  └──────────┘  └────────┘  └─────────────┘      │
 │                                                             │
@@ -50,7 +50,7 @@ Project Aether is a self-healing network connectivity daemon designed to maintai
 | **resource** | 5-tier adaptive power management: Relay → Client → LowPower → Hibernate → Shutdown | 14 |
 | **crypto** | Ed25519 identity, Noise_XX handshake, ChaCha20-Poly1305 envelopes | — |
 | **hwscan** | Parallel COM/USB/Audio/Network hardware discovery | — |
-| **cli** | Human-operator interface with ANSI formatting and RU/EN localization | — |
+| **cli** | Minimalist human-operator interface for hardware intervention | — |
 
 ### Connectivity Tiers
 

@@ -5,20 +5,36 @@ package cli
 
 // PromptSet holds all prompts for a given language.
 type PromptSet struct {
+	ActionRequired    string
+	PressEnter        string
+	Timeout           string
+	Confirmed         string
+	AutoDetected      string
+	ExpectedDevice    string
+	AutoDetectEnabled string
+	AbortHint         string
 	HardwareActions   map[string]string
 }
 
 // Prompts is a map of language → prompt set.
 var Prompts = map[Language]PromptSet{
 	LangEN: {
+		ActionRequired:    "ACTION_REQUIRED",
+		PressEnter:        "AWAITING_INPUT (ENTER: confirm, Q: abort)",
+		Timeout:           "TIMEOUT",
+		Confirmed:         "CONFIRMED. RESCANNING.",
+		AutoDetected:      "AUTO_DETECTED",
+		ExpectedDevice:    "EXPECTED",
+		AutoDetectEnabled: "AUTO_DETECT_ACTIVE",
+		AbortHint:         "ABORT_CMD: 'q'",
 		HardwareActions: map[string]string{
-			"attach_lora":     "attach_lora_transceiver",
-			"attach_modem":    "attach_usb_modem",
-			"connect_phone":   "connect_analog_line",
-			"attach_sdr":      "attach_sdr_rx",
-			"enable_hotspot":  "enable_usb_tethering",
-			"position_sdr":    "align_sdr_azimuth",
-			"generic_network": "establish_link",
+			"attach_lora":     "CONNECT_LORA_USB",
+			"attach_modem":    "CONNECT_MODEM_SIM",
+			"connect_phone":   "CONNECT_ANALOG_PHONE",
+			"attach_sdr":      "CONNECT_SDR_USB",
+			"enable_hotspot":  "ENABLE_USB_HOTSPOT",
+			"position_sdr":    "POSITION_SDR_ANTENNA",
+			"generic_network": "ESTABLISH_NETWORK_LINK",
 		},
 	},
 }
